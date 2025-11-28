@@ -37,9 +37,7 @@ import app.aaps.core.interfaces.utils.fabric.FabricPrivacy
 import app.aaps.core.keys.BooleanKey
 import app.aaps.core.keys.IntKey
 import app.aaps.core.objects.extensions.directionToIcon
-import app.aaps.core.ui.dialogs.OKDialog
 import app.aaps.core.ui.extensions.toVisibility
-import app.aaps.core.utils.HtmlHelper
 import app.aaps.ui.R
 import app.aaps.ui.databinding.DialogSiteRotationBinding
 import app.aaps.ui.databinding.DialogSiteRotationChildBinding
@@ -269,8 +267,11 @@ class SiteRotationDialog : DialogFragmentWithDate() {
                         te.note = null
                     }
                     if (actions.isNotEmpty())
-                        activity?.let { activity ->
-                            OKDialog.showConfirmation(activity, rh.gs(R.string.record_site_change), HtmlHelper.fromHtml(Joiner.on("<br/>").join(actions)), {
+                        uiInteraction.showOkCancelDialog(
+                            context = requireActivity(),
+                            title = rh.gs(R.string.record_site_change),
+                            message = Joiner.on("<br/>").join(actions),
+                            ok = {
                                 uel.log(
                                     action = action,
                                     source = Sources.SiteRotationDialog,
@@ -280,8 +281,9 @@ class SiteRotationDialog : DialogFragmentWithDate() {
                                 disposable += persistenceLayer.insertOrUpdateTherapyEvent(
                                     therapyEvent = te
                                 ).subscribe()
-                            }, null)
-                        }
+                            },
+                            cancel = null
+                        )
                 }
             }
         }
