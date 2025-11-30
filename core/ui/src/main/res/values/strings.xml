@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--    General-->
+    <string name="treatments">Treatments</string>
     <string name="refresh">Refresh</string>
     <string name="error">Error</string>
     <string name="profile_set_ok">Basal profile in pump updated</string>

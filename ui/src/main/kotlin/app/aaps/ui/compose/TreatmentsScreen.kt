@@ -143,7 +143,7 @@ fun TreatmentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(tabs[pagerState.currentPage].titleRes)) },
+                title = { Text(stringResource(app.aaps.core.ui.R.string.treatments)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
