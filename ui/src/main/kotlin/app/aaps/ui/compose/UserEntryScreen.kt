@@ -1,11 +1,11 @@
 package app.aaps.ui.compose
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Card
@@ -71,9 +72,10 @@ import java.util.concurrent.TimeUnit
  * @param userEntryPresentationHelper Helper for formatting user entry display
  * @param rxBus RxBus for observing history data changes
  * @param aapsSchedulers Schedulers for RxJava operations
- * @param setToolbarActions Lambda to set toolbar action buttons
+ * @param setToolbarConfig Lambda to set toolbar configuration
+ * @param onNavigateBack Lambda to handle back navigation
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun UserEntryScreen(
     persistenceLayer: PersistenceLayer,
@@ -82,7 +84,8 @@ fun UserEntryScreen(
     userEntryPresentationHelper: UserEntryPresentationHelper,
     rxBus: RxBus,
     aapsSchedulers: AapsSchedulers,
-    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
+    setToolbarConfig: (ToolbarConfig) -> Unit,
+    onNavigateBack: () -> Unit = { }
 ) {
     val context = LocalContext.current
 
@@ -125,43 +128,55 @@ fun UserEntryScreen(
         }
     }
 
-    // Set toolbar actions
-    SideEffect {
-        setToolbarActions {
-            // Show/Hide loop records button
-            Box {
-                IconButton(onClick = { showMenu = true }) {
-                    Icon(
-                        imageVector = if (showLoop) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (showLoop) "Hide loop records" else "Show loop records",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    if (!showLoop) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.show_loop)) },
-                            onClick = {
-                                showLoop = true
-                                showMenu = false
-                            }
-                        )
-                    } else {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.hide_loop)) },
-                            onClick = {
-                                showLoop = false
-                                showMenu = false
-                            }
+    // Update toolbar configuration
+    LaunchedEffect(Unit) {
+        setToolbarConfig(
+            ToolbarConfig(
+                title = rh.gs(app.aaps.core.ui.R.string.treatments),
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(app.aaps.core.ui.R.string.back)
                         )
                     }
+                },
+                actions = {
+                    // Show/Hide loop records dropdown menu
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = if (showLoop) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showLoop) "Hide loop records" else "Show loop records"
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            if (!showLoop) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.show_loop)) },
+                                    onClick = {
+                                        showLoop = true
+                                        showMenu = false
+                                    }
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.hide_loop)) },
+                                    onClick = {
+                                        showLoop = false
+                                        showMenu = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
-            }
-        }
+            )
+        )
     }
 
     AapsTheme {

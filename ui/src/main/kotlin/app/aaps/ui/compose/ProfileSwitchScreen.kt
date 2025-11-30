@@ -1,11 +1,11 @@
 package app.aaps.ui.compose
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -75,7 +77,7 @@ import java.util.concurrent.TimeUnit
  * @param rxBus RxBus for observing profile switch changes
  * @param aapsSchedulers Schedulers for RxJava operations
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileSwitchScreen(
     persistenceLayer: PersistenceLayer,
@@ -85,7 +87,8 @@ fun ProfileSwitchScreen(
     uiInteraction: UiInteraction,
     rxBus: RxBus,
     aapsSchedulers: AapsSchedulers,
-    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
+    setToolbarConfig: (ToolbarConfig) -> Unit,
+    onNavigateBack: () -> Unit = { }
 ) {
     val context = LocalContext.current
 
@@ -140,82 +143,97 @@ fun ProfileSwitchScreen(
         persistenceLayer.getEffectiveProfileSwitchActiveAt(dateUtil.now())
     }
 
-    // Update toolbar actions whenever state changes
-    SideEffect {
-        setToolbarActions {
-            // Show/Hide invalidated button
-            IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                Icon(
-                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Delete button
-            IconButton(
-                onClick = {
-                    if (isRemovingMode) {
-                        // Confirm and remove
-                        if (selectedItems.isNotEmpty()) {
-                            val confirmationText = if (selectedItems.size == 1) {
-                                val ps = selectedItems[0]
-                                "${rh.gs(app.aaps.core.ui.R.string.careportal_profileswitch)}: ${ps.profileName}\n${dateUtil.dateAndTimeString(ps.timestamp)}"
-                            } else {
-                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                            }
-
-                            uiInteraction.showOkCancelDialog(
-                                context = context,
-                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                message = confirmationText,
-                                ok = {
-                                    selectedItems.forEach { profileSwitch ->
-                                        if (profileSwitch is ProfileSealed.PS) {
-                                            persistenceLayer.invalidateProfileSwitch(
-                                                id = profileSwitch.id,
-                                                action = Action.PROFILE_SWITCH_REMOVED,
-                                                source = Sources.Treatments,
-                                                note = profileSwitch.profileName,
-                                                listValues = listOf(
-                                                    ValueWithUnit.Timestamp(profileSwitch.timestamp)
-                                                )
-                                            ).subscribe()
-                                        }
-                                    }
-                                    selectedItems.clear()
-                                    isRemovingMode = false
-                                    refreshKey++
-                                }
+    // Update toolbar configuration whenever state changes
+    LaunchedEffect(isRemovingMode, selectedItems.size) {
+        setToolbarConfig(
+            if (isRemovingMode) {
+                // Selection mode: show count, close icon, and delete action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.count_selected, selectedItems.size),
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isRemovingMode = false
+                            selectedItems.clear()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.close)
                             )
                         }
-                    } else {
-                        // Enter removing mode
-                        isRemovingMode = true
-                        selectedItems.clear()
+                    },
+                    actions = {
+                        // Delete button
+                        IconButton(
+                            onClick = {
+                                if (selectedItems.isNotEmpty()) {
+                                    val confirmationText = if (selectedItems.size == 1) {
+                                        val ps = selectedItems[0]
+                                        "${rh.gs(app.aaps.core.ui.R.string.careportal_profileswitch)}: ${ps.profileName}\n${dateUtil.dateAndTimeString(ps.timestamp)}"
+                                    } else {
+                                        rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                                    }
+
+                                    uiInteraction.showOkCancelDialog(
+                                        context = context,
+                                        title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                        message = confirmationText,
+                                        ok = {
+                                            selectedItems.forEach { profileSwitch ->
+                                                if (profileSwitch is ProfileSealed.PS) {
+                                                    persistenceLayer.invalidateProfileSwitch(
+                                                        id = profileSwitch.id,
+                                                        action = Action.PROFILE_SWITCH_REMOVED,
+                                                        source = Sources.Treatments,
+                                                        note = profileSwitch.profileName,
+                                                        listValues = listOf(
+                                                            ValueWithUnit.Timestamp(profileSwitch.timestamp)
+                                                        )
+                                                    ).subscribe()
+                                                }
+                                            }
+                                            selectedItems.clear()
+                                            isRemovingMode = false
+                                            refreshKey++
+                                        }
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.delete),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove items",
-                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            } else {
+                // Normal mode: show title, back icon, and show/hide action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.treatments),
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.back)
+                            )
+                        }
+                    },
+                    actions = {
+                        // Show/Hide invalidated button
+                        IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                            Icon(
+                                imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showInvalidated)
+                                    stringResource(app.aaps.core.ui.R.string.hide_invalidated)
+                                else
+                                    stringResource(app.aaps.core.ui.R.string.show_invalidated)
+                            )
+                        }
+                    }
                 )
             }
-
-            // Cancel button when in removing mode
-            if (isRemovingMode) {
-                IconButton(onClick = {
-                    isRemovingMode = false
-                    selectedItems.clear()
-                }) {
-                    Text(
-                        text = stringResource(android.R.string.cancel),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
+        )
     }
 
     AapsTheme {
@@ -256,11 +274,22 @@ fun ProfileSwitchScreen(
                                 showDate = index == 0 || !dateUtil.isSameDayGroup(profileSwitch.timestamp, profileSwitches[index - 1].timestamp),
                                 isRemovingMode = isRemovingMode,
                                 isSelected = selectedItems.contains(profileSwitch),
-                                onSelectionChange = { selected ->
-                                    if (selected) {
+                                onClick = {
+                                    if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
+                                        // Toggle selection
+                                        if (selectedItems.contains(profileSwitch)) {
+                                            selectedItems.remove(profileSwitch)
+                                        } else {
+                                            selectedItems.add(profileSwitch)
+                                        }
+                                    }
+                                },
+                                onLongPress = {
+                                    if (profileSwitch is ProfileSealed.PS && profileSwitch.isValid && !isRemovingMode) {
+                                        // Enter selection mode and select this item
+                                        isRemovingMode = true
+                                        selectedItems.clear()
                                         selectedItems.add(profileSwitch)
-                                    } else {
-                                        selectedItems.remove(profileSwitch)
                                     }
                                 },
                                 rh = rh,
@@ -276,6 +305,7 @@ fun ProfileSwitchScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileSwitchItem(
     profileSwitch: ProfileSealed,
@@ -284,7 +314,8 @@ private fun ProfileSwitchItem(
     showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
-    onSelectionChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
     rh: ResourceHelper,
     dateUtil: DateUtil,
     decimalFormatter: DecimalFormatter,
@@ -294,15 +325,16 @@ private fun ProfileSwitchItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp)
-            .then(
-                if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
-                    Modifier.clickable { onSelectionChange(!isSelected) }
-                } else {
-                    Modifier
-                }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Column(
@@ -420,7 +452,7 @@ private fun ProfileSwitchItem(
                 if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
                     Checkbox(
                         checked = isSelected,
-                        onCheckedChange = onSelectionChange,
+                        onCheckedChange = { onClick() },
                         modifier = Modifier.size(24.dp)
                     )
                 }

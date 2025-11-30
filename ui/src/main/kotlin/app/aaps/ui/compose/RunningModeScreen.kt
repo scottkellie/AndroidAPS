@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -74,7 +77,7 @@ import java.util.concurrent.TimeUnit
  * @param rxBus RxBus for observing running mode changes
  * @param aapsSchedulers Schedulers for RxJava operations
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun RunningModeScreen(
     persistenceLayer: PersistenceLayer,
@@ -84,7 +87,8 @@ fun RunningModeScreen(
     uiInteraction: UiInteraction,
     rxBus: RxBus,
     aapsSchedulers: AapsSchedulers,
-    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
+    setToolbarConfig: (ToolbarConfig) -> Unit,
+    onNavigateBack: () -> Unit = { }
 ) {
     val context = LocalContext.current
 
@@ -131,82 +135,97 @@ fun RunningModeScreen(
         persistenceLayer.getRunningModeActiveAt(dateUtil.now())
     }
 
-    // Update toolbar actions whenever state changes
-    SideEffect {
-        setToolbarActions {
-            // Show/Hide invalidated button
-            IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                Icon(
-                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Delete button
-            IconButton(
-                onClick = {
-                    if (isRemovingMode) {
-                        // Confirm and remove
-                        if (selectedItems.isNotEmpty()) {
-                            val confirmationText = if (selectedItems.size == 1) {
-                                val rm = selectedItems[0]
-                                "${rh.gs(app.aaps.core.ui.R.string.running_mode)}: ${rm.mode.name}\n${dateUtil.dateAndTimeString(rm.timestamp)}"
-                            } else {
-                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                            }
-
-                            uiInteraction.showOkCancelDialog(
-                                context = context,
-                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                message = confirmationText,
-                                ok = {
-                                    selectedItems.forEach { rm ->
-                                        persistenceLayer.invalidateRunningMode(
-                                            id = rm.id,
-                                            action = Action.LOOP_REMOVED,
-                                            source = Sources.Treatments,
-                                            note = null,
-                                            listValues = listOfNotNull(
-                                                ValueWithUnit.Timestamp(rm.timestamp),
-                                                ValueWithUnit.RMMode(rm.mode),
-                                                ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(rm.duration).toInt())
-                                            )
-                                        ).subscribe()
-                                    }
-                                    selectedItems.clear()
-                                    isRemovingMode = false
-                                    refreshKey++
-                                }
+    // Update toolbar configuration whenever state changes
+    LaunchedEffect(isRemovingMode, selectedItems.size) {
+        setToolbarConfig(
+            if (isRemovingMode) {
+                // Selection mode: show count, close icon, and delete action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.count_selected, selectedItems.size),
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isRemovingMode = false
+                            selectedItems.clear()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.close)
                             )
                         }
-                    } else {
-                        // Enter removing mode
-                        isRemovingMode = true
-                        selectedItems.clear()
+                    },
+                    actions = {
+                        // Delete button
+                        IconButton(
+                            onClick = {
+                                if (selectedItems.isNotEmpty()) {
+                                    val confirmationText = if (selectedItems.size == 1) {
+                                        val rm = selectedItems[0]
+                                        "${rh.gs(app.aaps.core.ui.R.string.running_mode)}: ${rm.mode.name}\n${dateUtil.dateAndTimeString(rm.timestamp)}"
+                                    } else {
+                                        rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                                    }
+
+                                    uiInteraction.showOkCancelDialog(
+                                        context = context,
+                                        title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                        message = confirmationText,
+                                        ok = {
+                                            selectedItems.forEach { rm ->
+                                                persistenceLayer.invalidateRunningMode(
+                                                    id = rm.id,
+                                                    action = Action.LOOP_REMOVED,
+                                                    source = Sources.Treatments,
+                                                    note = null,
+                                                    listValues = listOfNotNull(
+                                                        ValueWithUnit.Timestamp(rm.timestamp),
+                                                        ValueWithUnit.RMMode(rm.mode),
+                                                        ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(rm.duration).toInt())
+                                                    )
+                                                ).subscribe()
+                                            }
+                                            selectedItems.clear()
+                                            isRemovingMode = false
+                                            refreshKey++
+                                        }
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.delete),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove items",
-                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            } else {
+                // Normal mode: show title, back icon, and show/hide action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.treatments),
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.back)
+                            )
+                        }
+                    },
+                    actions = {
+                        // Show/Hide invalidated button
+                        IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                            Icon(
+                                imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showInvalidated)
+                                    stringResource(app.aaps.core.ui.R.string.hide_invalidated)
+                                else
+                                    stringResource(app.aaps.core.ui.R.string.show_invalidated)
+                            )
+                        }
+                    }
                 )
             }
-
-            // Cancel button when in removing mode
-            if (isRemovingMode) {
-                IconButton(onClick = {
-                    isRemovingMode = false
-                    selectedItems.clear()
-                }) {
-                    Text(
-                        text = stringResource(android.R.string.cancel),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
+        )
     }
 
     AapsTheme {
@@ -247,11 +266,22 @@ fun RunningModeScreen(
                                 showDate = index == 0 || !dateUtil.isSameDayGroup(rm.timestamp, runningModes[index - 1].timestamp),
                                 isRemovingMode = isRemovingMode,
                                 isSelected = selectedItems.contains(rm),
-                                onSelectionChange = { selected ->
-                                    if (selected) {
+                                onClick = {
+                                    if (isRemovingMode && rm.isValid) {
+                                        // Toggle selection
+                                        if (selectedItems.contains(rm)) {
+                                            selectedItems.remove(rm)
+                                        } else {
+                                            selectedItems.add(rm)
+                                        }
+                                    }
+                                },
+                                onLongPress = {
+                                    if (rm.isValid && !isRemovingMode) {
+                                        // Enter selection mode and select this item
+                                        isRemovingMode = true
+                                        selectedItems.clear()
                                         selectedItems.add(rm)
-                                    } else {
-                                        selectedItems.remove(rm)
                                     }
                                 },
                                 rh = rh,
@@ -267,6 +297,7 @@ fun RunningModeScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun RunningModeItem(
     runningMode: RM,
@@ -275,7 +306,8 @@ private fun RunningModeItem(
     showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
-    onSelectionChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
     rh: ResourceHelper,
     translator: Translator,
     dateUtil: DateUtil,
@@ -285,15 +317,16 @@ private fun RunningModeItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp)
-            .then(
-                if (isRemovingMode) {
-                    Modifier.clickable { onSelectionChange(!isSelected) }
-                } else {
-                    Modifier
-                }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Column(
@@ -379,7 +412,7 @@ private fun RunningModeItem(
                 if (isRemovingMode && runningMode.isValid) {
                     Checkbox(
                         checked = isSelected,
-                        onCheckedChange = onSelectionChange,
+                        onCheckedChange = { onClick() },
                         modifier = Modifier.size(24.dp)
                     )
                 }

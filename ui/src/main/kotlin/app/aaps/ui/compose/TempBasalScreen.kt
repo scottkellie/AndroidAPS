@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -83,9 +86,10 @@ import kotlin.math.abs
  * @param uiInteraction UI interaction helper for showing dialogs
  * @param rxBus RxBus for observing temp basal changes
  * @param aapsSchedulers Schedulers for RxJava operations
- * @param setToolbarActions Callback to set the toolbar actions
+ * @param setToolbarConfig Callback to set the toolbar configuration
+ * @param onNavigateBack Callback to navigate back
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TempBasalScreen(
     persistenceLayer: PersistenceLayer,
@@ -97,7 +101,8 @@ fun TempBasalScreen(
     uiInteraction: UiInteraction,
     rxBus: RxBus,
     aapsSchedulers: AapsSchedulers,
-    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
+    setToolbarConfig: (ToolbarConfig) -> Unit,
+    onNavigateBack: () -> Unit = { }
 ) {
     val context = LocalContext.current
 
@@ -160,111 +165,126 @@ fun TempBasalScreen(
         }
     }
 
-    // Update toolbar actions whenever state changes
-    SideEffect {
-        setToolbarActions {
-            // Show/Hide invalidated button
-            IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                Icon(
-                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Delete button
-            IconButton(
-                onClick = {
-                    if (isRemovingMode) {
-                        // Confirm and remove
-                        if (selectedItems.isNotEmpty()) {
-                            val confirmationText = if (selectedItems.size == 1) {
-                                val tempBasal = selectedItems[0]
-                                val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
-                                val profile = profileFunction.getProfile(dateUtil.now())
-                                if (profile != null) {
-                                    "${if (isFakeExtended) rh.gs(app.aaps.core.ui.R.string.extended_bolus) else rh.gs(app.aaps.core.ui.R.string.tempbasal_label)}: ${
-                                        tempBasal.toStringFull(
-                                            profile,
-                                            dateUtil,
-                                            rh
-                                        )
-                                    }\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(tempBasal.timestamp)}"
-                                } else {
-                                    rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                                }
-                            } else {
-                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                            }
-
-                            uiInteraction.showOkCancelDialog(
-                                context = context,
-                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                message = confirmationText,
-                                ok = {
-                                    selectedItems.forEach { tempBasal ->
-                                        val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
-                                        if (isFakeExtended) {
-                                            val extendedBolus = persistenceLayer.getExtendedBolusActiveAt(tempBasal.timestamp)
-                                            if (extendedBolus != null) {
-                                                persistenceLayer.invalidateExtendedBolus(
-                                                    id = extendedBolus.id,
-                                                    action = Action.EXTENDED_BOLUS_REMOVED,
-                                                    source = Sources.Treatments,
-                                                    listValues = listOf(
-                                                        ValueWithUnit.Timestamp(extendedBolus.timestamp),
-                                                        ValueWithUnit.Insulin(extendedBolus.amount),
-                                                        ValueWithUnit.UnitPerHour(extendedBolus.rate),
-                                                        ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(extendedBolus.duration).toInt())
-                                                    )
-                                                ).subscribe()
-                                            }
-                                        } else {
-                                            persistenceLayer.invalidateTemporaryBasal(
-                                                id = tempBasal.id,
-                                                action = Action.TEMP_BASAL_REMOVED,
-                                                source = Sources.Treatments,
-                                                listValues = listOf(
-                                                    ValueWithUnit.Timestamp(tempBasal.timestamp),
-                                                    if (tempBasal.isAbsolute) ValueWithUnit.UnitPerHour(tempBasal.rate) else ValueWithUnit.Percent(tempBasal.rate.toInt()),
-                                                    ValueWithUnit.Minute(T.msecs(tempBasal.duration).mins().toInt())
-                                                )
-                                            ).subscribe()
-                                        }
-                                    }
-                                    selectedItems.clear()
-                                    isRemovingMode = false
-                                    refreshKey++
-                                }
+    // Update toolbar configuration whenever state changes
+    LaunchedEffect(isRemovingMode, selectedItems.size) {
+        setToolbarConfig(
+            if (isRemovingMode) {
+                // Selection mode: show count, close icon, and delete action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.count_selected, selectedItems.size),
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isRemovingMode = false
+                            selectedItems.clear()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.close)
                             )
                         }
-                    } else {
-                        // Enter removing mode
-                        isRemovingMode = true
-                        selectedItems.clear()
+                    },
+                    actions = {
+                        // Delete button
+                        IconButton(
+                            onClick = {
+                                if (selectedItems.isNotEmpty()) {
+                                    val confirmationText = if (selectedItems.size == 1) {
+                                        val tempBasal = selectedItems[0]
+                                        val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
+                                        val profile = profileFunction.getProfile(dateUtil.now())
+                                        if (profile != null) {
+                                            "${if (isFakeExtended) rh.gs(app.aaps.core.ui.R.string.extended_bolus) else rh.gs(app.aaps.core.ui.R.string.tempbasal_label)}: ${
+                                                tempBasal.toStringFull(
+                                                    profile,
+                                                    dateUtil,
+                                                    rh
+                                                )
+                                            }\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(tempBasal.timestamp)}"
+                                        } else {
+                                            rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                                        }
+                                    } else {
+                                        rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                                    }
+
+                                    uiInteraction.showOkCancelDialog(
+                                        context = context,
+                                        title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                        message = confirmationText,
+                                        ok = {
+                                            selectedItems.forEach { tempBasal ->
+                                                val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
+                                                if (isFakeExtended) {
+                                                    val extendedBolus = persistenceLayer.getExtendedBolusActiveAt(tempBasal.timestamp)
+                                                    if (extendedBolus != null) {
+                                                        persistenceLayer.invalidateExtendedBolus(
+                                                            id = extendedBolus.id,
+                                                            action = Action.EXTENDED_BOLUS_REMOVED,
+                                                            source = Sources.Treatments,
+                                                            listValues = listOf(
+                                                                ValueWithUnit.Timestamp(extendedBolus.timestamp),
+                                                                ValueWithUnit.Insulin(extendedBolus.amount),
+                                                                ValueWithUnit.UnitPerHour(extendedBolus.rate),
+                                                                ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(extendedBolus.duration).toInt())
+                                                            )
+                                                        ).subscribe()
+                                                    }
+                                                } else {
+                                                    persistenceLayer.invalidateTemporaryBasal(
+                                                        id = tempBasal.id,
+                                                        action = Action.TEMP_BASAL_REMOVED,
+                                                        source = Sources.Treatments,
+                                                        listValues = listOf(
+                                                            ValueWithUnit.Timestamp(tempBasal.timestamp),
+                                                            if (tempBasal.isAbsolute) ValueWithUnit.UnitPerHour(tempBasal.rate) else ValueWithUnit.Percent(tempBasal.rate.toInt()),
+                                                            ValueWithUnit.Minute(T.msecs(tempBasal.duration).mins().toInt())
+                                                        )
+                                                    ).subscribe()
+                                                }
+                                            }
+                                            selectedItems.clear()
+                                            isRemovingMode = false
+                                            refreshKey++
+                                        }
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.delete),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove items",
-                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            } else {
+                // Normal mode: show title, back icon, and show/hide action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.treatments),
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.back)
+                            )
+                        }
+                    },
+                    actions = {
+                        // Show/Hide invalidated button
+                        IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                            Icon(
+                                imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showInvalidated)
+                                    stringResource(app.aaps.core.ui.R.string.hide_invalidated)
+                                else
+                                    stringResource(app.aaps.core.ui.R.string.show_invalidated)
+                            )
+                        }
+                    }
                 )
             }
-
-            // Cancel button when in removing mode
-            if (isRemovingMode) {
-                IconButton(onClick = {
-                    isRemovingMode = false
-                    selectedItems.clear()
-                }) {
-                    Text(
-                        text = stringResource(android.R.string.cancel),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
+        )
     }
 
     AapsTheme {
@@ -305,11 +325,22 @@ fun TempBasalScreen(
                                     showDate = index == 0 || !dateUtil.isSameDayGroup(tb.timestamp, tempBasals[index - 1].timestamp),
                                     isRemovingMode = isRemovingMode,
                                     isSelected = selectedItems.contains(tb),
-                                    onSelectionChange = { selected ->
-                                        if (selected) {
+                                    onClick = {
+                                        if (isRemovingMode && tb.isValid) {
+                                            // Toggle selection
+                                            if (selectedItems.contains(tb)) {
+                                                selectedItems.remove(tb)
+                                            } else {
+                                                selectedItems.add(tb)
+                                            }
+                                        }
+                                    },
+                                    onLongPress = {
+                                        if (tb.isValid && !isRemovingMode) {
+                                            // Enter selection mode and select this item
+                                            isRemovingMode = true
+                                            selectedItems.clear()
                                             selectedItems.add(tb)
-                                        } else {
-                                            selectedItems.remove(tb)
                                         }
                                     },
                                     profileFunction = profileFunction,
@@ -327,6 +358,7 @@ fun TempBasalScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TempBasalItem(
     tempBasal: TB,
@@ -335,7 +367,8 @@ private fun TempBasalItem(
     showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
-    onSelectionChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
     profileFunction: ProfileFunction,
     activePlugin: ActivePlugin,
     rh: ResourceHelper,
@@ -355,15 +388,16 @@ private fun TempBasalItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp)
-            .then(
-                if (isRemovingMode) {
-                    Modifier.clickable { onSelectionChange(!isSelected) }
-                } else {
-                    Modifier
-                }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Column(
@@ -526,7 +560,7 @@ private fun TempBasalItem(
                 if (isRemovingMode && tempBasal.isValid) {
                     Checkbox(
                         checked = isSelected,
-                        onCheckedChange = onSelectionChange,
+                        onCheckedChange = { onClick() },
                         modifier = Modifier.size(24.dp)
                     )
                 }

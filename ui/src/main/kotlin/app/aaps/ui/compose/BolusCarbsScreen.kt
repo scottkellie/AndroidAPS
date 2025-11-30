@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -82,7 +85,7 @@ import java.util.concurrent.TimeUnit
  * @param rxBus RxBus for observing treatment changes
  * @param aapsSchedulers Schedulers for RxJava operations
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun BolusCarbsScreen(
     persistenceLayer: PersistenceLayer,
@@ -94,7 +97,8 @@ fun BolusCarbsScreen(
     uiInteraction: UiInteraction,
     rxBus: RxBus,
     aapsSchedulers: AapsSchedulers,
-    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
+    setToolbarConfig: (ToolbarConfig) -> Unit,
+    onNavigateBack: () -> Unit = { }
 ) {
     val context = LocalContext.current
 
@@ -162,111 +166,126 @@ fun BolusCarbsScreen(
 
     val profile = remember(refreshKey) { profileFunction.getProfile() }
 
-    // Update toolbar actions whenever state changes
-    SideEffect {
-        setToolbarActions {
-            // Show/Hide invalidated button
-            IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                Icon(
-                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            // Delete button
-            IconButton(
-                onClick = {
-                    if (isRemovingMode) {
-                        // Confirm and remove
-                        if (selectedItems.isNotEmpty()) {
-                            val confirmationText = if (selectedItems.size == 1) {
-                                val ml = selectedItems[0]
-                                val bolus = ml.bolus
-                                if (bolus != null) {
-                                    "${rh.gs(app.aaps.core.ui.R.string.configbuilder_insulin)}: ${rh.gs(app.aaps.core.ui.R.string.format_insulin_units, bolus.amount)}\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(bolus.timestamp)}"
-                                } else {
-                                    val carbs = ml.carbs
-                                    if (carbs != null) {
-                                        "${rh.gs(app.aaps.core.ui.R.string.carbs)}: ${rh.gs(app.aaps.core.objects.R.string.format_carbs, carbs.amount.toInt())}\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(carbs.timestamp)}"
+    // Update toolbar configuration whenever state changes
+    LaunchedEffect(isRemovingMode, selectedItems.size) {
+        setToolbarConfig(
+            if (isRemovingMode) {
+                // Selection mode: show count, close icon, and delete action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.count_selected, selectedItems.size),
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            isRemovingMode = false
+                            selectedItems.clear()
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.close)
+                            )
+                        }
+                    },
+                    actions = {
+                        // Delete button
+                        IconButton(
+                            onClick = {
+                                if (selectedItems.isNotEmpty()) {
+                                    val confirmationText = if (selectedItems.size == 1) {
+                                        val ml = selectedItems[0]
+                                        val bolus = ml.bolus
+                                        if (bolus != null) {
+                                            "${rh.gs(app.aaps.core.ui.R.string.configbuilder_insulin)}: ${rh.gs(app.aaps.core.ui.R.string.format_insulin_units, bolus.amount)}\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(bolus.timestamp)}"
+                                        } else {
+                                            val carbs = ml.carbs
+                                            if (carbs != null) {
+                                                "${rh.gs(app.aaps.core.ui.R.string.carbs)}: ${rh.gs(app.aaps.core.objects.R.string.format_carbs, carbs.amount.toInt())}\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(carbs.timestamp)}"
+                                            } else {
+                                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                                            }
+                                        }
                                     } else {
                                         rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
                                     }
-                                }
-                            } else {
-                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                            }
 
-                            uiInteraction.showOkCancelDialog(
-                                context = context,
-                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                message = confirmationText,
-                                ok = {
-                                    selectedItems.forEach { ml ->
-                                        ml.bolus?.let { bolus ->
-                                            persistenceLayer.invalidateBolus(
-                                                bolus.id,
-                                                action = Action.BOLUS_REMOVED,
-                                                source = Sources.Treatments,
-                                                listValues = listOf(
-                                                    ValueWithUnit.Timestamp(bolus.timestamp),
-                                                    ValueWithUnit.Insulin(bolus.amount)
-                                                )
-                                            ).subscribe()
+                                    uiInteraction.showOkCancelDialog(
+                                        context = context,
+                                        title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                        message = confirmationText,
+                                        ok = {
+                                            selectedItems.forEach { ml ->
+                                                ml.bolus?.let { bolus ->
+                                                    persistenceLayer.invalidateBolus(
+                                                        bolus.id,
+                                                        action = Action.BOLUS_REMOVED,
+                                                        source = Sources.Treatments,
+                                                        listValues = listOf(
+                                                            ValueWithUnit.Timestamp(bolus.timestamp),
+                                                            ValueWithUnit.Insulin(bolus.amount)
+                                                        )
+                                                    ).subscribe()
+                                                }
+                                                ml.carbs?.let { carb ->
+                                                    persistenceLayer.invalidateCarbs(
+                                                        carb.id,
+                                                        action = Action.CARBS_REMOVED,
+                                                        source = Sources.Treatments,
+                                                        listValues = listOf(
+                                                            ValueWithUnit.Timestamp(carb.timestamp),
+                                                            ValueWithUnit.Gram(carb.amount.toInt())
+                                                        )
+                                                    ).subscribe()
+                                                }
+                                                ml.bolusCalculatorResult?.let { bolusCalculatorResult ->
+                                                    persistenceLayer.invalidateBolusCalculatorResult(
+                                                        bolusCalculatorResult.id,
+                                                        action = Action.BOLUS_CALCULATOR_RESULT_REMOVED,
+                                                        source = Sources.Treatments,
+                                                        listValues = listOf(ValueWithUnit.Timestamp(bolusCalculatorResult.timestamp))
+                                                    ).subscribe()
+                                                }
+                                            }
+                                            selectedItems.clear()
+                                            isRemovingMode = false
+                                            refreshKey++
                                         }
-                                        ml.carbs?.let { carb ->
-                                            persistenceLayer.invalidateCarbs(
-                                                carb.id,
-                                                action = Action.CARBS_REMOVED,
-                                                source = Sources.Treatments,
-                                                listValues = listOf(
-                                                    ValueWithUnit.Timestamp(carb.timestamp),
-                                                    ValueWithUnit.Gram(carb.amount.toInt())
-                                                )
-                                            ).subscribe()
-                                        }
-                                        ml.bolusCalculatorResult?.let { bolusCalculatorResult ->
-                                            persistenceLayer.invalidateBolusCalculatorResult(
-                                                bolusCalculatorResult.id,
-                                                action = Action.BOLUS_CALCULATOR_RESULT_REMOVED,
-                                                source = Sources.Treatments,
-                                                listValues = listOf(ValueWithUnit.Timestamp(bolusCalculatorResult.timestamp))
-                                            ).subscribe()
-                                        }
-                                    }
-                                    selectedItems.clear()
-                                    isRemovingMode = false
-                                    refreshKey++
+                                    )
                                 }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.delete),
+                                tint = MaterialTheme.colorScheme.error
                             )
                         }
-                    } else {
-                        // Enter removing mode
-                        isRemovingMode = true
-                        selectedItems.clear()
                     }
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Remove items",
-                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            } else {
+                // Normal mode: show title, back icon, and show/hide action
+                ToolbarConfig(
+                    title = rh.gs(app.aaps.core.ui.R.string.treatments),
+                    navigationIcon = {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(app.aaps.core.ui.R.string.back)
+                            )
+                        }
+                    },
+                    actions = {
+                        // Show/Hide invalidated button
+                        IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                            Icon(
+                                imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (showInvalidated)
+                                    stringResource(app.aaps.core.ui.R.string.hide_invalidated)
+                                else
+                                    stringResource(app.aaps.core.ui.R.string.show_invalidated)
+                            )
+                        }
+                    }
                 )
             }
-
-            // Cancel button when in removing mode
-            if (isRemovingMode) {
-                IconButton(onClick = {
-                    isRemovingMode = false
-                    selectedItems.clear()
-                }) {
-                    Text(
-                        text = stringResource(android.R.string.cancel),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
+        )
     }
 
     AapsTheme {
@@ -310,11 +329,22 @@ fun BolusCarbsScreen(
                                     ),
                                     isRemovingMode = isRemovingMode,
                                     isSelected = selectedItems.contains(ml),
-                                    onSelectionChange = { selected ->
-                                        if (selected) {
+                                    onClick = {
+                                        if (isRemovingMode && ml.isValid()) {
+                                            // Toggle selection
+                                            if (selectedItems.contains(ml)) {
+                                                selectedItems.remove(ml)
+                                            } else {
+                                                selectedItems.add(ml)
+                                            }
+                                        }
+                                    },
+                                    onLongPress = {
+                                        if (ml.isValid() && !isRemovingMode) {
+                                            // Enter selection mode and select this item
+                                            isRemovingMode = true
+                                            selectedItems.clear()
                                             selectedItems.add(ml)
-                                        } else {
-                                            selectedItems.remove(ml)
                                         }
                                     },
                                     profile = profile,
@@ -337,15 +367,21 @@ data class MealLink(
     val bolus: BS? = null,
     val carbs: CA? = null,
     val bolusCalculatorResult: BCR? = null
-)
+) {
+    fun isValid(): Boolean {
+        return (bolus?.isValid ?: true) && (carbs?.isValid ?: true) && (bolusCalculatorResult?.isValid ?: true)
+    }
+}
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MealLinkItem(
     mealLink: MealLink,
     showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
-    onSelectionChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
     profile: Profile?,
     activePlugin: ActivePlugin,
     rh: ResourceHelper,
@@ -360,15 +396,16 @@ private fun MealLinkItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp)
-            .then(
-                if (isRemovingMode) {
-                    Modifier.clickable { onSelectionChange(!isSelected) }
-                } else {
-                    Modifier
-                }
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongPress
             ),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = if (isSelected) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            }
         )
     ) {
         Column(
@@ -422,7 +459,7 @@ private fun MealLinkItem(
                         if (isRemovingMode && bcr.isValid) {
                             Checkbox(
                                 checked = isSelected,
-                                onCheckedChange = onSelectionChange,
+                                onCheckedChange = { onClick() },
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -513,7 +550,7 @@ private fun MealLinkItem(
                         if (isRemovingMode && bolus.isValid) {
                             Checkbox(
                                 checked = isSelected,
-                                onCheckedChange = onSelectionChange,
+                                onCheckedChange = { onClick() },
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -589,7 +626,7 @@ private fun MealLinkItem(
                         if (isRemovingMode && carbs.isValid) {
                             Checkbox(
                                 checked = isSelected,
-                                onCheckedChange = onSelectionChange,
+                                onCheckedChange = { onClick() },
                                 modifier = Modifier.size(24.dp)
                             )
                         }

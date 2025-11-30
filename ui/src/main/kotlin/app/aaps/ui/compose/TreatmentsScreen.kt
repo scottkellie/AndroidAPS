@@ -54,6 +54,19 @@ import app.aaps.ui.R
 import kotlinx.coroutines.launch
 
 /**
+ * Configuration for the toolbar state.
+ *
+ * @param title The title to display in the toolbar
+ * @param navigationIcon The navigation icon composable (back arrow or close icon)
+ * @param actions The action buttons to display in the toolbar
+ */
+data class ToolbarConfig(
+    val title: String,
+    val navigationIcon: @Composable () -> Unit,
+    val actions: @Composable RowScope.() -> Unit
+)
+
+/**
  * Composable screen displaying treatments with tab navigation.
  * Uses Jetpack Compose for all content including each treatment type.
  *
@@ -91,7 +104,22 @@ fun TreatmentsScreen(
     onNavigateBack: () -> Unit
 ) {
     val iconColors = AapsTheme.elementColors
-    var toolbarActions by remember { mutableStateOf<(@Composable RowScope.() -> Unit)?>(null) }
+    var toolbarConfig by remember {
+        mutableStateOf(
+            ToolbarConfig(
+                title = "",
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(app.aaps.core.ui.R.string.back)
+                        )
+                    }
+                },
+                actions = { }
+            )
+        )
+    }
 
     // Define tabs with their icons and content
     val tabs = remember(showExtendedBolusTab) {
@@ -112,7 +140,8 @@ fun TreatmentsScreen(
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -133,7 +162,8 @@ fun TreatmentsScreen(
                                 uiInteraction = uiInteraction,
                                 rxBus = rxBus,
                                 aapsSchedulers = aapsSchedulers,
-                                setToolbarActions = { actions -> toolbarActions = actions }
+                                setToolbarConfig = { config -> toolbarConfig = config },
+                                onNavigateBack = onNavigateBack
                             )
                         }
                     )
@@ -155,7 +185,8 @@ fun TreatmentsScreen(
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -176,7 +207,8 @@ fun TreatmentsScreen(
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -195,7 +227,8 @@ fun TreatmentsScreen(
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -215,7 +248,8 @@ fun TreatmentsScreen(
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -234,7 +268,8 @@ fun TreatmentsScreen(
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -252,7 +287,8 @@ fun TreatmentsScreen(
                             userEntryPresentationHelper = userEntryPresentationHelper,
                             rxBus = rxBus,
                             aapsSchedulers = aapsSchedulers,
-                            setToolbarActions = { actions -> toolbarActions = actions }
+                            setToolbarConfig = { config -> toolbarConfig = config },
+                            onNavigateBack = onNavigateBack
                         )
                     }
                 )
@@ -266,18 +302,9 @@ fun TreatmentsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(app.aaps.core.ui.R.string.treatments)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(app.aaps.core.ui.R.string.back)
-                        )
-                    }
-                },
-                actions = {
-                    toolbarActions?.invoke(this)
-                }
+                title = { Text(toolbarConfig.title) },
+                navigationIcon = { toolbarConfig.navigationIcon() },
+                actions = { toolbarConfig.actions(this) }
             )
         }
     ) { paddingValues ->

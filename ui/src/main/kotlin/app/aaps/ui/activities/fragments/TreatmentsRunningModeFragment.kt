@@ -39,7 +39,7 @@ class TreatmentsRunningModeFragment : DaggerFragment() {
                     uiInteraction = uiInteraction,
                     rxBus = rxBus,
                     aapsSchedulers = aapsSchedulers,
-                    setToolbarActions = { } // No-op for fragment usage
+                    setToolbarConfig = { } // No-op for fragment usage
                 )
             }
         }
