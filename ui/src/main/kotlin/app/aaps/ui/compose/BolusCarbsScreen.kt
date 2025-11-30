@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
@@ -321,50 +323,71 @@ fun BolusCarbsScreen(
                     }
 
                     else -> {
+                        // Group items by day for sticky headers
+                        val groupedByDay = mealLinks.groupBy { ml ->
+                            val timestamp = ml.bolusCalculatorResult?.timestamp ?: ml.bolus?.timestamp ?: ml.carbs?.timestamp ?: 0L
+                            dateUtil.dateString(timestamp)
+                        }
+
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            itemsIndexed(
-                                items = mealLinks,
-                                key = { _, item ->
-                                    item.bolus?.id ?: item.carbs?.id ?: item.bolusCalculatorResult?.id ?: 0L
+                            groupedByDay.forEach { (dateString, itemsForDay) ->
+                                stickyHeader(key = dateString) {
+                                    Text(
+                                        text = dateUtil.dateStringRelative(
+                                            itemsForDay.first().let { it.bolusCalculatorResult?.timestamp ?: it.bolus?.timestamp ?: it.carbs?.timestamp ?: 0L },
+                                            rh
+                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
                                 }
-                            ) { index, ml ->
-                                MealLinkItem(
-                                    mealLink = ml,
-                                    showDate = index == 0 || !dateUtil.isSameDayGroup(
-                                        ml.bolusCalculatorResult?.timestamp ?: ml.bolus?.timestamp ?: ml.carbs?.timestamp ?: 0L,
-                                        mealLinks[index - 1].bolusCalculatorResult?.timestamp ?: mealLinks[index - 1].bolus?.timestamp ?: mealLinks[index - 1].carbs?.timestamp ?: 0L
-                                    ),
-                                    isRemovingMode = isRemovingMode,
-                                    isSelected = selectedItems.contains(ml),
-                                    onClick = {
-                                        if (isRemovingMode && ml.isValid()) {
-                                            // Toggle selection
-                                            if (selectedItems.contains(ml)) {
-                                                selectedItems.remove(ml)
-                                            } else {
+
+                                items(
+                                    items = itemsForDay,
+                                    key = { item ->
+                                        item.bolus?.id ?: item.carbs?.id ?: item.bolusCalculatorResult?.id ?: 0L
+                                    }
+                                ) { ml ->
+                                    MealLinkItem(
+                                        mealLink = ml,
+                                        isRemovingMode = isRemovingMode,
+                                        isSelected = selectedItems.contains(ml),
+                                        onClick = {
+                                            if (isRemovingMode && ml.isValid()) {
+                                                // Toggle selection
+                                                if (selectedItems.contains(ml)) {
+                                                    selectedItems.remove(ml)
+                                                } else {
+                                                    selectedItems.add(ml)
+                                                }
+                                            }
+                                        },
+                                        onLongPress = {
+                                            if (ml.isValid() && !isRemovingMode) {
+                                                // Enter selection mode and select this item
+                                                isRemovingMode = true
+                                                selectedItems.clear()
                                                 selectedItems.add(ml)
                                             }
-                                        }
-                                    },
-                                    onLongPress = {
-                                        if (ml.isValid() && !isRemovingMode) {
-                                            // Enter selection mode and select this item
-                                            isRemovingMode = true
-                                            selectedItems.clear()
-                                            selectedItems.add(ml)
-                                        }
-                                    },
-                                    profile = profile,
-                                    activePlugin = activePlugin,
-                                    rh = rh,
-                                    dateUtil = dateUtil,
-                                    decimalFormatter = decimalFormatter,
-                                    generalColors = generalColors,
-                                    showInvalidated = showInvalidated
-                                )
+                                        },
+                                        profile = profile,
+                                        activePlugin = activePlugin,
+                                        rh = rh,
+                                        dateUtil = dateUtil,
+                                        decimalFormatter = decimalFormatter,
+                                        generalColors = generalColors,
+                                        showInvalidated = showInvalidated
+                                    )
+                                }
                             }
                         }
                     }
@@ -387,7 +410,6 @@ data class MealLink(
 @Composable
 private fun MealLinkItem(
     mealLink: MealLink,
-    showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -400,12 +422,10 @@ private fun MealLinkItem(
     generalColors: GeneralColors,
     showInvalidated: Boolean
 ) {
-    val timestamp = mealLink.bolusCalculatorResult?.timestamp ?: mealLink.bolus?.timestamp ?: mealLink.carbs?.timestamp ?: 0L
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(horizontal = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -419,20 +439,8 @@ private fun MealLinkItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(2.dp)
+            modifier = Modifier.padding(1.dp)
         ) {
-            // Date header
-            if (showDate) {
-                Text(
-                    text = dateUtil.dateStringRelative(timestamp, rh),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 5.dp, vertical = 5.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
 
             // Bolus Calculator Result (Metadata)
             mealLink.bolusCalculatorResult?.let { bcr ->
@@ -440,12 +448,12 @@ private fun MealLinkItem(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = dateUtil.timeString(bcr.timestamp),
-                            modifier = Modifier.padding(start = 5.dp),
+                            modifier = Modifier.padding(start = 4.dp),
                             fontSize = 14.sp
                         )
 
@@ -485,12 +493,12 @@ private fun MealLinkItem(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = dateUtil.timeString(bolus.timestamp),
-                            modifier = Modifier.padding(start = 5.dp),
+                            modifier = Modifier.padding(start = 4.dp),
                             fontSize = 14.sp,
                             color = if (bolus.timestamp > dateUtil.now()) Color(0xFFFFAA00) else MaterialTheme.colorScheme.onSurface
                         )
@@ -609,18 +617,18 @@ private fun MealLinkItem(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = dateUtil.timeString(carbs.timestamp),
-                            modifier = Modifier.padding(start = 5.dp),
+                            modifier = Modifier.padding(start = 4.dp),
                             fontSize = 14.sp
                         )
 
                         Text(
                             text = rh.gs(app.aaps.core.ui.R.string.carbs) + ":",
-                            modifier = Modifier.padding(start = 10.dp, end = 5.dp),
+                            modifier = Modifier.padding(start = 8.dp, end = 4.dp),
                             fontSize = 14.sp
                         )
 
@@ -633,7 +641,7 @@ private fun MealLinkItem(
                         if (carbs.duration > 0) {
                             Text(
                                 text = rh.gs(app.aaps.core.ui.R.string.format_mins, T.msecs(carbs.duration).mins().toInt()),
-                                modifier = Modifier.padding(start = 10.dp),
+                                modifier = Modifier.padding(start = 8.dp),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
@@ -642,7 +650,7 @@ private fun MealLinkItem(
                         carbs.notes?.takeIf { it.isNotEmpty() }?.let { notes ->
                             Text(
                                 text = notes,
-                                modifier = Modifier.padding(start = 10.dp),
+                                modifier = Modifier.padding(start = 8.dp),
                                 fontSize = 12.sp,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -695,7 +703,7 @@ private fun MealLinkItem(
                 bolus.notes?.takeIf { it.isNotEmpty() && mealLink.carbs == null }?.let { notes ->
                     Text(
                         text = notes,
-                        modifier = Modifier.padding(start = 20.dp, end = 10.dp, bottom = 5.dp),
+                        modifier = Modifier.padding(start = 12.dp, end = 8.dp, bottom = 3.dp),
                         fontSize = 12.sp,
                         style = MaterialTheme.typography.bodySmall
                     )
