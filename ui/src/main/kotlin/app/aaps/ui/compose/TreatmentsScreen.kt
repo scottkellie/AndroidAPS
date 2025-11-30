@@ -1,11 +1,10 @@
 package app.aaps.ui.compose
 
-import android.view.View
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
@@ -19,23 +18,25 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentActivity
-import androidx.fragment.app.FragmentContainerView
-import androidx.fragment.app.FragmentTransaction
+import app.aaps.core.interfaces.db.PersistenceLayer
+import app.aaps.core.interfaces.plugin.ActivePlugin
+import app.aaps.core.interfaces.profile.ProfileFunction
+import app.aaps.core.interfaces.profile.ProfileUtil
+import app.aaps.core.interfaces.resources.ResourceHelper
+import app.aaps.core.interfaces.rx.AapsSchedulers
+import app.aaps.core.interfaces.rx.bus.RxBus
+import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.core.interfaces.userEntry.UserEntryPresentationHelper
+import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.interfaces.utils.DecimalFormatter
+import app.aaps.core.interfaces.utils.Translator
 import app.aaps.core.ui.compose.AapsTheme
 import app.aaps.core.ui.compose.icons.Carbs
 import app.aaps.core.ui.compose.icons.Careportal
@@ -50,30 +51,64 @@ import kotlinx.coroutines.launch
 
 /**
  * Composable screen displaying treatments with tab navigation.
- * Uses AndroidView to embed existing fragment-based treatment screens.
+ * Uses Jetpack Compose for all content including each treatment type.
  *
- * @param activity The FragmentActivity hosting this screen
  * @param showExtendedBolusTab Whether to show the Extended Bolus tab
+ * @param persistenceLayer Database layer for treatment data
+ * @param profileUtil Profile utility for unit conversion
+ * @param profileFunction Profile function for calculations
+ * @param activePlugin Active plugin for pump capabilities
+ * @param rh Resource helper for string resources
+ * @param translator Translator for treatment types
+ * @param dateUtil Date utility for formatting dates and times
+ * @param decimalFormatter Formatter for decimal values
+ * @param uiInteraction UI interaction helper for showing dialogs
+ * @param userEntryPresentationHelper Helper for formatting user entry display
+ * @param rxBus RxBus for observing treatment changes
+ * @param aapsSchedulers Schedulers for RxJava operations
  * @param onNavigateBack Callback when back navigation is requested
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TreatmentsScreen(
-    activity: FragmentActivity,
     showExtendedBolusTab: Boolean,
+    persistenceLayer: PersistenceLayer,
+    profileUtil: ProfileUtil,
+    profileFunction: ProfileFunction,
+    activePlugin: ActivePlugin,
+    rh: ResourceHelper,
+    translator: Translator,
+    dateUtil: DateUtil,
+    decimalFormatter: DecimalFormatter,
+    uiInteraction: UiInteraction,
+    userEntryPresentationHelper: UserEntryPresentationHelper,
+    rxBus: RxBus,
+    aapsSchedulers: AapsSchedulers,
     onNavigateBack: () -> Unit
 ) {
     val iconColors = AapsTheme.elementColors
 
-    // Define tabs with their icons and content descriptions
+    // Define tabs with their icons and content
     val tabs = remember(showExtendedBolusTab) {
         buildList {
             add(
                 TreatmentTab(
                     icon = Carbs,
                     titleRes = R.string.carbs_and_bolus,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsBolusCarbsFragment::class.java,
-                    colorGetter = { iconColors.bolusCarbs }
+                    colorGetter = { iconColors.bolusCarbs },
+                    content = {
+                        BolusCarbsScreen(
+                            persistenceLayer = persistenceLayer,
+                            profileFunction = profileFunction,
+                            activePlugin = activePlugin,
+                            rh = rh,
+                            dateUtil = dateUtil,
+                            decimalFormatter = decimalFormatter,
+                            uiInteraction = uiInteraction,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
             if (showExtendedBolusTab) {
@@ -81,8 +116,19 @@ fun TreatmentsScreen(
                     TreatmentTab(
                         icon = ExtendedBolus,
                         titleRes = app.aaps.core.ui.R.string.extended_bolus,
-                        fragmentClass = app.aaps.ui.activities.fragments.TreatmentsExtendedBolusesFragment::class.java,
-                        colorGetter = { iconColors.extendedBolus }
+                        colorGetter = { iconColors.extendedBolus },
+                        content = {
+                            ExtendedBolusScreen(
+                                persistenceLayer = persistenceLayer,
+                                profileFunction = profileFunction,
+                                activeInsulin = activePlugin.activeInsulin,
+                                rh = rh,
+                                dateUtil = dateUtil,
+                                uiInteraction = uiInteraction,
+                                rxBus = rxBus,
+                                aapsSchedulers = aapsSchedulers
+                            )
+                        }
                     )
                 )
             }
@@ -90,48 +136,112 @@ fun TreatmentsScreen(
                 TreatmentTab(
                     icon = TempBasal,
                     titleRes = app.aaps.core.ui.R.string.tempbasal_label,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsTemporaryBasalsFragment::class.java,
-                    colorGetter = { iconColors.tempBasal }
+                    colorGetter = { iconColors.tempBasal },
+                    content = {
+                        TempBasalScreen(
+                            persistenceLayer = persistenceLayer,
+                            profileFunction = profileFunction,
+                            activePlugin = activePlugin,
+                            rh = rh,
+                            dateUtil = dateUtil,
+                            decimalFormatter = decimalFormatter,
+                            uiInteraction = uiInteraction,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
             add(
                 TreatmentTab(
                     icon = TempTarget,
                     titleRes = app.aaps.core.ui.R.string.temporary_target,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsTempTargetFragment::class.java,
-                    colorGetter = { iconColors.tempTarget }
+                    colorGetter = { iconColors.tempTarget },
+                    content = {
+                        TempTargetScreen(
+                            persistenceLayer = persistenceLayer,
+                            profileUtil = profileUtil,
+                            rh = rh,
+                            translator = translator,
+                            dateUtil = dateUtil,
+                            decimalFormatter = decimalFormatter,
+                            uiInteraction = uiInteraction,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
             add(
                 TreatmentTab(
                     icon = ProfileSwitch,
                     titleRes = app.aaps.core.ui.R.string.careportal_profileswitch,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsProfileSwitchFragment::class.java,
-                    colorGetter = { iconColors.profileSwitch }
+                    colorGetter = { iconColors.profileSwitch },
+                    content = {
+                        ProfileSwitchScreen(
+                            persistenceLayer = persistenceLayer,
+                            rh = rh,
+                            dateUtil = dateUtil,
+                            decimalFormatter = decimalFormatter,
+                            uiInteraction = uiInteraction,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
             add(
                 TreatmentTab(
                     icon = Careportal,
                     titleRes = app.aaps.core.ui.R.string.careportal,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsCareportalFragment::class.java,
-                    colorGetter = { iconColors.careportal }
+                    colorGetter = { iconColors.careportal },
+                    content = {
+                        CareportalScreen(
+                            persistenceLayer = persistenceLayer,
+                            profileUtil = profileUtil,
+                            rh = rh,
+                            translator = translator,
+                            dateUtil = dateUtil,
+                            uiInteraction = uiInteraction,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
             add(
                 TreatmentTab(
                     icon = RunningMode,
                     titleRes = app.aaps.core.ui.R.string.running_mode,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsRunningModeFragment::class.java,
-                    colorGetter = { iconColors.runningMode }
+                    colorGetter = { iconColors.runningMode },
+                    content = {
+                        RunningModeScreen(
+                            persistenceLayer = persistenceLayer,
+                            rh = rh,
+                            translator = translator,
+                            dateUtil = dateUtil,
+                            uiInteraction = uiInteraction,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
             add(
                 TreatmentTab(
                     icon = UserEntry,
                     titleRes = R.string.user_entry,
-                    fragmentClass = app.aaps.ui.activities.fragments.TreatmentsUserEntryFragment::class.java,
-                    colorGetter = { iconColors.userEntry }
+                    colorGetter = { iconColors.userEntry },
+                    content = {
+                        UserEntryScreen(
+                            persistenceLayer = persistenceLayer,
+                            rh = rh,
+                            dateUtil = dateUtil,
+                            userEntryPresentationHelper = userEntryPresentationHelper,
+                            rxBus = rxBus,
+                            aapsSchedulers = aapsSchedulers
+                        )
+                    }
                 )
             )
         }
@@ -174,7 +284,7 @@ fun TreatmentsScreen(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = stringResource(tab.titleRes),
-                                tint = tab.colorGetter(),  // Use theme colors for icons
+                                tint = tab.colorGetter(),
                                 modifier = Modifier.size(24.dp)
                             )
                         },
@@ -185,26 +295,12 @@ fun TreatmentsScreen(
                 }
             }
 
-            // Fragment container with swipe support
+            // Pager with treatment screens
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
-                AndroidView(
-                    factory = { context ->
-                        FragmentContainerView(context).apply {
-                            id = View.generateViewId()
-                        }
-                    },
-                    update = { view ->
-                        val fragment = tabs[page].fragmentClass.getDeclaredConstructor().newInstance()
-                        activity.supportFragmentManager.beginTransaction()
-                            .replace(view.id, fragment)
-                            .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-                            .commit()
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
+                tabs[page].content()
             }
         }
     }
@@ -215,12 +311,12 @@ fun TreatmentsScreen(
  *
  * @param icon The ImageVector icon for the tab
  * @param titleRes The string resource ID for the tab title
- * @param fragmentClass The Fragment class to display when this tab is selected
  * @param colorGetter Lambda function that returns the color for the tab icon from theme
+ * @param content Composable content to display when this tab is selected
  */
 private data class TreatmentTab(
     val icon: ImageVector,
     val titleRes: Int,
-    val fragmentClass: Class<out Fragment>,
-    val colorGetter: () -> Color
+    val colorGetter: () -> Color,
+    val content: @Composable () -> Unit
 )

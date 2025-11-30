@@ -3,8 +3,18 @@ package app.aaps.ui.activities
 import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.CompositionLocalProvider
+import app.aaps.core.interfaces.db.PersistenceLayer
 import app.aaps.core.interfaces.plugin.ActivePlugin
+import app.aaps.core.interfaces.profile.ProfileFunction
+import app.aaps.core.interfaces.profile.ProfileUtil
+import app.aaps.core.interfaces.resources.ResourceHelper
+import app.aaps.core.interfaces.rx.AapsSchedulers
 import app.aaps.core.interfaces.rx.bus.RxBus
+import app.aaps.core.interfaces.ui.UiInteraction
+import app.aaps.core.interfaces.userEntry.UserEntryPresentationHelper
+import app.aaps.core.interfaces.utils.DateUtil
+import app.aaps.core.interfaces.utils.DecimalFormatter
+import app.aaps.core.interfaces.utils.Translator
 import app.aaps.core.keys.interfaces.Preferences
 import app.aaps.core.ui.activities.TranslatedDaggerAppCompatActivity
 import app.aaps.core.ui.compose.AapsTheme
@@ -27,10 +37,6 @@ import javax.inject.Inject
  * 7. **Running Mode**: Running mode changes (closed loop, open loop, etc.)
  * 8. **User Entry**: User action log entries
  *
- * The activity uses Jetpack Compose for the tab navigation and toolbar while preserving
- * the existing Fragment-based implementation for each treatment category. This allows for
- * a gradual migration to Compose while maintaining existing functionality.
- *
  * @see app.aaps.ui.compose.TreatmentsScreen
  */
 class TreatmentsActivity : TranslatedDaggerAppCompatActivity() {
@@ -38,6 +44,16 @@ class TreatmentsActivity : TranslatedDaggerAppCompatActivity() {
     @Inject lateinit var activePlugin: ActivePlugin
     @Inject lateinit var preferences: Preferences
     @Inject lateinit var rxBus: RxBus
+    @Inject lateinit var persistenceLayer: PersistenceLayer
+    @Inject lateinit var profileUtil: ProfileUtil
+    @Inject lateinit var profileFunction: ProfileFunction
+    @Inject lateinit var rh: ResourceHelper
+    @Inject lateinit var translator: Translator
+    @Inject lateinit var dateUtil: DateUtil
+    @Inject lateinit var decimalFormatter: DecimalFormatter
+    @Inject lateinit var uiInteraction: UiInteraction
+    @Inject lateinit var userEntryPresentationHelper: UserEntryPresentationHelper
+    @Inject lateinit var aapsSchedulers: AapsSchedulers
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,8 +69,19 @@ class TreatmentsActivity : TranslatedDaggerAppCompatActivity() {
             ) {
                 AapsTheme {
                     TreatmentsScreen(
-                        activity = this,
                         showExtendedBolusTab = showExtendedBolusTab,
+                        persistenceLayer = persistenceLayer,
+                        profileUtil = profileUtil,
+                        profileFunction = profileFunction,
+                        activePlugin = activePlugin,
+                        rh = rh,
+                        translator = translator,
+                        dateUtil = dateUtil,
+                        decimalFormatter = decimalFormatter,
+                        uiInteraction = uiInteraction,
+                        userEntryPresentationHelper = userEntryPresentationHelper,
+                        rxBus = rxBus,
+                        aapsSchedulers = aapsSchedulers,
                         onNavigateBack = { finish() }
                     )
                 }
