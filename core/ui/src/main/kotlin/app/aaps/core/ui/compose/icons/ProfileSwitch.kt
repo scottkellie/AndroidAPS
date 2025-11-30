@@ -22,13 +22,13 @@ val ProfileSwitch: ImageVector by lazy {
         viewportHeight = 24f
     ).apply {
         path(
-            fill = SolidColor(Color.Black),
+            fill = null,
             fillAlpha = 1.0f,
-            stroke = null,
+            stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 1.0f,
-            strokeLineCap = StrokeCap.Butt,
-            strokeLineJoin = StrokeJoin.Miter,
+            strokeLineWidth = 1.2f,
+            strokeLineCap = StrokeCap.Round,
+            strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {

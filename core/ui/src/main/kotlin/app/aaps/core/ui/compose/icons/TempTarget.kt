@@ -18,8 +18,8 @@ val TempTarget: ImageVector by lazy {
         name = "TempTarget",
         defaultWidth = 48.dp,
         defaultHeight = 48.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f
+        viewportWidth = 22f,
+        viewportHeight = 13.5f
     ).apply {
         path(
             fill = SolidColor(Color.Black),
@@ -32,16 +32,16 @@ val TempTarget: ImageVector by lazy {
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(7.242f, 17.689f)
+            moveTo(5.242f, 11.689f)
             curveToRelative(-0.005f, 0f, -0.011f, 0f, -0.017f, 0f)
             curveToRelative(-0.695f, -0.013f, -1.318f, -0.829f, -1.709f, -2.24f)
             curveToRelative(-0.285f, -1.029f, -0.542f, -2.103f, -0.792f, -3.141f)
             curveToRelative(-0.156f, -0.65f, -0.313f, -1.301f, -0.476f, -1.945f)
-            lineTo(4.14f, 9.929f)
+            lineTo(2.14f, 3.929f)
             curveToRelative(-0.369f, -1.486f, -0.75f, -3.024f, -1.746f, -3.197f)
             curveToRelative(-0.116f, -0.02f, -0.193f, -0.130f, -0.173f, -0.246f)
             reflectiveCurveToRelative(0.129f, -0.189f, 0.246f, -0.173f)
-            curveTo(3.735f, 6.534f, 4.15f, 8.208f, 4.552f, 9.827f)
+            curveTo(1.735f, 0.534f, 2.15f, 2.208f, 2.552f, 3.827f)
             lineToRelative(0.108f, 0.432f)
             curveToRelative(0.164f, 0.646f, 0.321f, 1.298f, 0.478f, 1.951f)
             curveToRelative(0.249f, 1.035f, 0.506f, 2.104f, 0.789f, 3.127f)
@@ -84,7 +84,7 @@ val TempTarget: ImageVector by lazy {
             curveToRelative(-0.131f, 0.546f, -0.262f, 1.092f, -0.399f, 1.630f)
             lineToRelative(-0.124f, 0.486f)
             curveToRelative(-0.158f, 0.623f, -0.32f, 1.268f, -0.512f, 1.871f)
-            curveTo(8.367f, 17.32f, 7.706f, 17.689f, 7.242f, 17.689f)
+            curveTo(6.367f, 11.32f, 5.706f, 11.689f, 5.242f, 11.689f)
             close()
         }
         path(
@@ -98,17 +98,17 @@ val TempTarget: ImageVector by lazy {
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(21.569f, 12.709f)
+            moveTo(19.569f, 6.709f)
             horizontalLineToRelative(-4.772f)
             curveToRelative(-0.392f, 0f, -0.709f, -0.317f, -0.709f, -0.709f)
-            verticalLineTo(9.177f)
-            horizontalLineTo(7.927f)
+            verticalLineTo(3.177f)
+            horizontalLineTo(5.927f)
             verticalLineToRelative(2.823f)
             curveToRelative(0f, 0.392f, -0.317f, 0.709f, -0.708f, 0.709f)
-            horizontalLineTo(2.431f)
+            horizontalLineTo(0.431f)
             curveToRelative(-0.392f, 0f, -0.708f, -0.317f, -0.708f, -0.709f)
             reflectiveCurveToRelative(0.317f, -0.708f, 0.708f, -0.708f)
-            horizontalLineTo(6.51f)
+            horizontalLineTo(4.51f)
             verticalLineToRelative(-2.823f)
             curveToRelative(0f, -0.392f, 0.317f, -0.708f, 0.708f, -0.708f)
             horizontalLineToRelative(9.578f)
@@ -116,7 +116,7 @@ val TempTarget: ImageVector by lazy {
             verticalLineToRelative(2.823f)
             horizontalLineToRelative(4.063f)
             curveToRelative(0.392f, 0f, 0.709f, 0.317f, 0.709f, 0.708f)
-            reflectiveCurveTo(21.961f, 12.709f, 21.569f, 12.709f)
+            reflectiveCurveTo(19.961f, 6.709f, 19.569f, 6.709f)
             close()
         }
     }.build()

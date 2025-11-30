@@ -1,5 +1,6 @@
 package app.aaps.ui.compose
 
+import android.view.View
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -26,13 +27,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.fragment.app.FragmentContainerView
 import androidx.fragment.app.FragmentTransaction
 import app.aaps.core.ui.compose.AapsTheme
-import app.aaps.core.ui.compose.icons.BolusCarbs
+import app.aaps.core.ui.compose.icons.Carbs
 import app.aaps.core.ui.compose.icons.Careportal
 import app.aaps.core.ui.compose.icons.ExtendedBolus
 import app.aaps.core.ui.compose.icons.ProfileSwitch
@@ -68,7 +68,7 @@ fun TreatmentsScreen(
         buildList {
             add(
                 TreatmentTab(
-                    icon = BolusCarbs,
+                    icon = Carbs,
                     titleRes = R.string.carbs_and_bolus,
                     fragmentClass = app.aaps.ui.activities.fragments.TreatmentsBolusCarbsFragment::class.java,
                     colorGetter = { iconColors.bolusCarbs }
@@ -179,7 +179,8 @@ fun TreatmentsScreen(
                             Icon(
                                 imageVector = tab.icon,
                                 contentDescription = stringResource(tab.titleRes),
-                                tint = tab.colorGetter()  // Use theme colors for icons
+                                tint = tab.colorGetter(),  // Use theme colors for icons
+                                modifier = Modifier.size(24.dp)
                             )
                         },
                         text = {

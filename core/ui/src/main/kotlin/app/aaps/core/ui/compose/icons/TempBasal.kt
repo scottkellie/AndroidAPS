@@ -18,8 +18,8 @@ val TempBasal: ImageVector by lazy {
         name = "TempBasal",
         defaultWidth = 48.dp,
         defaultHeight = 48.dp,
-        viewportWidth = 24f,
-        viewportHeight = 24f
+        viewportWidth = 18f,
+        viewportHeight = 14.5f
     ).apply {
         path(
             fill = SolidColor(Color.Black),
@@ -32,7 +32,7 @@ val TempBasal: ImageVector by lazy {
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(16.578f, 18.033f)
+            moveTo(13.078f, 12.033f)
             verticalLineToRelative(-11.043f)
             horizontalLineToRelative(-3.698f)
             verticalLineToRelative(11.043f)
