@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Temporary Basal treatment type.
  * Represents temporary basal rate adjustments.
+ *
+ * Bounding box: x: -0.11-16.11, y: -0.17-12.17 (viewport: 18x14.5, ~90% width)
  */
 val TempBasal: ImageVector by lazy {
     ImageVector.Builder(
@@ -32,18 +34,18 @@ val TempBasal: ImageVector by lazy {
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(13.078f, 12.033f)
-            verticalLineToRelative(-11.043f)
-            horizontalLineToRelative(-3.698f)
-            verticalLineToRelative(11.043f)
-            horizontalLineToRelative(-9.363f)
-            verticalLineToRelative(-1.01f)
-            horizontalLineToRelative(8.354f)
-            verticalLineToRelative(-11.041f)
-            horizontalLineToRelative(5.717f)
-            verticalLineToRelative(11.041f)
-            horizontalLineToRelative(1.645f)
-            verticalLineToRelative(1.01f)
+            moveTo(13.20f, 12.17f)
+            verticalLineToRelative(-11.83f)
+            horizontalLineToRelative(-3.96f)
+            verticalLineToRelative(11.83f)
+            horizontalLineToRelative(-10.02f)
+            verticalLineToRelative(-1.08f)
+            horizontalLineToRelative(8.94f)
+            verticalLineToRelative(-11.83f)
+            horizontalLineToRelative(6.12f)
+            verticalLineToRelative(11.83f)
+            horizontalLineToRelative(1.76f)
+            verticalLineToRelative(1.08f)
             close()
         }
     }.build()

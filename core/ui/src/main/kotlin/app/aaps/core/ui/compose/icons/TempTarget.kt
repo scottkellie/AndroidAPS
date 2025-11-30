@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Temporary Target treatment type.
  * Represents temporary blood glucose targets.
+ *
+ * Bounding box: x: 0.221-20.277, y: 0.313-11.689 (viewport: 22x13.5)
  */
 val TempTarget: ImageVector by lazy {
     ImageVector.Builder(

@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Super Micro Bolus (SMB).
  * Represents a drop/bolus with a downward arrow.
+ *
+ * Bounding box: x: 3.4-44.6, y: 3.0-44.4 (viewport: 48x48, includes stroke, ~90% width)
  */
 val Smb: ImageVector by lazy {
     ImageVector.Builder(
@@ -22,23 +24,22 @@ val Smb: ImageVector by lazy {
         viewportHeight = 48f
     ).apply {
         // Drop/bolus shape
-        // Scaled by 1.6 (2x for viewport change, 0.8 for 80% size) and centered
         path(
             fill = null,
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 1.6f,
+            strokeLineWidth = 4f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(24f, 12.8f)
-            curveToRelative(-1.76f, 2.4f, -3.2f, 4.8f, -3.2f, 8f)
-            curveToRelative(0f, 3.52f, 2.88f, 6.4f, 6.4f, 6.4f)
-            reflectiveCurveToRelative(6.4f, -2.88f, 6.4f, -6.4f)
-            curveToRelative(0f, -3.2f, -1.44f, -5.6f, -3.2f, -8f)
+            moveTo(24f, 6.42f)
+            curveToRelative(-4.40f, 6.00f, -8.00f, 12.01f, -8.00f, 20.01f)
+            curveToRelative(0f, 8.80f, 7.21f, 16.01f, 16.01f, 16.01f)
+            reflectiveCurveToRelative(16.01f, -7.21f, 16.01f, -16.01f)
+            curveToRelative(0f, -8.00f, -3.60f, -14.01f, -8.00f, -20.01f)
             close()
         }
         // Vertical line (arrow shaft)
@@ -47,14 +48,14 @@ val Smb: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 1.6f,
+            strokeLineWidth = 4f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(24f, 20.8f)
-            verticalLineTo(27.2f)
+            moveTo(24f, 24.48f)
+            verticalLineTo(40.44f)
         }
         // Arrow head (down)
         path(
@@ -62,15 +63,15 @@ val Smb: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 1.6f,
+            strokeLineWidth = 4f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(20.8f, 24f)
-            lineTo(24f, 27.2f)
-            lineTo(27.2f, 24f)
+            moveTo(16.27f, 32.63f)
+            lineTo(24f, 40.44f)
+            lineTo(31.73f, 32.63f)
         }
     }.build()
 }

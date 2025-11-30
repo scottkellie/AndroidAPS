@@ -42,6 +42,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import app.aaps.core.ui.compose.icons.Ns
+import app.aaps.core.ui.compose.icons.Pump
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -499,21 +501,23 @@ private fun TempBasalItem(
 
                 // PH indicator (Pump History)
                 if (tempBasal.ids.pumpId != null) {
-                    Text(
-                        text = "PH",
-                        modifier = Modifier.padding(start = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color(elementColors.tempBasal.value)
+                    Icon(
+                        imageVector = Pump,
+                        contentDescription = "Pump History",
+                        modifier = Modifier
+                            .size(21.dp)
+                            .padding(start = 5.dp)
                     )
                 }
 
                 // NS indicator
                 if (tempBasal.ids.nightscoutId != null) {
-                    Text(
-                        text = "NS",
-                        modifier = Modifier.padding(start = 5.dp, end = 10.dp),
-                        fontSize = 14.sp,
-                        color = Color(elementColors.tempBasal.value)
+                    Icon(
+                        imageVector = Ns,
+                        contentDescription = "Nightscout",
+                        modifier = Modifier
+                            .size(21.dp)
+                            .padding(start = 5.dp, end = 10.dp)
                     )
                 }
             }

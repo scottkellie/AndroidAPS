@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Running Mode treatment type.
  * Represents running mode changes (closed loop, open loop, etc.).
+ *
+ * Bounding box: x: 0.4-19.0, y: 1.48-22.98 (viewport: 24x24)
  */
 val RunningMode: ImageVector by lazy {
     ImageVector.Builder(

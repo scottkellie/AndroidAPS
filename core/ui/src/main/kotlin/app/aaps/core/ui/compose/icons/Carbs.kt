@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Bolus and Carbs treatment type.
  * Represents insulin bolus and carbohydrate entries.
+ *
+ * Bounding box: x: 0.4-11.6, y: 0.425-11.579 (viewport: 12x12)
  */
 val Carbs: ImageVector by lazy {
     ImageVector.Builder(

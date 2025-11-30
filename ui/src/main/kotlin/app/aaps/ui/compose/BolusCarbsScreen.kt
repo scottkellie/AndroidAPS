@@ -42,6 +42,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import app.aaps.core.ui.compose.icons.Calculator
+import app.aaps.core.ui.compose.icons.Carbs
+import app.aaps.core.ui.compose.icons.Ns
+import app.aaps.core.ui.compose.icons.Prime
+import app.aaps.core.ui.compose.icons.Pump
+import app.aaps.core.ui.compose.icons.Smb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +74,7 @@ import app.aaps.core.interfaces.utils.DateUtil
 import app.aaps.core.interfaces.utils.DecimalFormatter
 import app.aaps.core.objects.extensions.iobCalc
 import app.aaps.core.ui.compose.AapsTheme
+import app.aaps.core.ui.compose.GeneralColors
 import app.aaps.ui.R
 import io.reactivex.rxjava3.disposables.CompositeDisposable
 import io.reactivex.rxjava3.kotlin.plusAssign
@@ -289,7 +299,7 @@ fun BolusCarbsScreen(
     }
 
     AapsTheme {
-        val elementColors = AapsTheme.elementColors
+        val generalColors = AapsTheme.generalColors
 
         // Content
         Box(modifier = Modifier.fillMaxSize()) {
@@ -352,7 +362,7 @@ fun BolusCarbsScreen(
                                     rh = rh,
                                     dateUtil = dateUtil,
                                     decimalFormatter = decimalFormatter,
-                                    elementColors = elementColors,
+                                    generalColors = generalColors,
                                     showInvalidated = showInvalidated
                                 )
                             }
@@ -387,7 +397,7 @@ private fun MealLinkItem(
     rh: ResourceHelper,
     dateUtil: DateUtil,
     decimalFormatter: DecimalFormatter,
-    elementColors: app.aaps.core.ui.compose.ElementColors,
+    generalColors: GeneralColors,
     showInvalidated: Boolean
 ) {
     val timestamp = mealLink.bolusCalculatorResult?.timestamp ?: mealLink.bolus?.timestamp ?: mealLink.carbs?.timestamp ?: 0L
@@ -441,18 +451,20 @@ private fun MealLinkItem(
 
                         Box(modifier = Modifier.weight(1f))
 
-                        Text(
-                            text = rh.gs(R.string.calculation_short),
-                            fontSize = 14.sp,
-                            color = Color(0xFF2196F3) // colorCalculatorButton
+                        Icon(
+                            imageVector = Calculator,
+                            contentDescription = "Calculator",
+                            modifier = Modifier.size(21.dp),
+                            tint = Color(generalColors.calculator.value)
                         )
 
                         if (bcr.ids.nightscoutId != null) {
-                            Text(
-                                text = "NS",
-                                modifier = Modifier.padding(start = 5.dp),
-                                fontSize = 14.sp,
-                                color = Color(elementColors.tempTarget.value)
+                            Icon(
+                                imageVector = Ns,
+                                contentDescription = "Nightscout",
+                                modifier = Modifier
+                                    .size(21.dp)
+                                    .padding(start = 5.dp)
                             )
                         }
 
@@ -483,58 +495,91 @@ private fun MealLinkItem(
                             color = if (bolus.timestamp > dateUtil.now()) Color(0xFFFFAA00) else MaterialTheme.colorScheme.onSurface
                         )
 
-                        Text(
-                            text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, bolus.amount),
-                            modifier = Modifier.padding(start = 10.dp),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        // IOB
+                        // Bolus amount with IOB
                         profile?.let { prof ->
                             val iob = bolus.iobCalc(activePlugin, System.currentTimeMillis(), prof.dia)
-                            if (iob.iobContrib > 0.01) {
-                                Text(
-                                    text = "IOB:",
-                                    modifier = Modifier.padding(start = 10.dp, end = 5.dp),
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, iob.iobContrib),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(elementColors.tempTarget.value)
-                                )
+                            val bolusText = if (iob.iobContrib > 0.01) {
+                                buildAnnotatedString {
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append(decimalFormatter.to2Decimal(bolus.amount))
+                                        append("U ")
+                                    }
+                                    withStyle(style = SpanStyle(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(generalColors.activeInsulinText.value)
+                                    )) {
+                                        append("(")
+                                        append(decimalFormatter.to2Decimal(iob.iobContrib))
+                                        append("U)")
+                                    }
+                                }
+                            } else {
+                                buildAnnotatedString {
+                                    withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                                        append(decimalFormatter.to2Decimal(bolus.amount))
+                                        append("U")
+                                    }
+                                }
                             }
+
+                            Text(
+                                text = bolusText,
+                                modifier = Modifier.padding(start = 10.dp),
+                                fontSize = 14.sp
+                            )
+                        } ?: run {
+                            Text(
+                                text = decimalFormatter.to2Decimal(bolus.amount) + "U",
+                                modifier = Modifier.padding(start = 10.dp),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
 
                         Box(modifier = Modifier.weight(1f))
 
                         // Bolus type
-                        Text(
-                            text = when (bolus.type) {
-                                BS.Type.SMB -> "SMB"
-                                BS.Type.NORMAL -> rh.gs(R.string.meal_bolus)
-                                BS.Type.PRIMING -> rh.gs(R.string.prime)
-                            },
-                            fontSize = 14.sp
-                        )
+                        when (bolus.type) {
+                            BS.Type.SMB -> {
+                                Icon(
+                                    imageVector = Smb,
+                                    contentDescription = "SMB",
+                                    modifier = Modifier.size(21.dp)
+                                )
+                            }
+                            BS.Type.NORMAL -> {
+                                Icon(
+                                    imageVector = Carbs,
+                                    contentDescription = "Meal",
+                                    modifier = Modifier.size(21.dp)
+                                )
+                            }
+                            BS.Type.PRIMING -> {
+                                Icon(
+                                    imageVector = Prime,
+                                    contentDescription = "Prime",
+                                    modifier = Modifier.size(21.dp)
+                                )
+                            }
+                        }
 
                         if (bolus.ids.nightscoutId != null) {
-                            Text(
-                                text = "NS",
-                                modifier = Modifier.padding(start = 5.dp),
-                                fontSize = 14.sp,
-                                color = Color(elementColors.tempTarget.value)
+                            Icon(
+                                imageVector = Ns,
+                                contentDescription = "Nightscout",
+                                modifier = Modifier
+                                    .size(21.dp)
+                                    .padding(start = 5.dp)
                             )
                         }
 
                         if (bolus.ids.isPumpHistory()) {
-                            Text(
-                                text = "PH",
-                                modifier = Modifier.padding(start = 5.dp),
-                                fontSize = 14.sp,
-                                color = Color(elementColors.tempTarget.value)
+                            Icon(
+                                imageVector = Pump,
+                                contentDescription = "Pump History",
+                                modifier = Modifier
+                                    .size(21.dp)
+                                    .padding(start = 5.dp)
                             )
                         }
 
@@ -594,23 +639,34 @@ private fun MealLinkItem(
                             )
                         }
 
+                        carbs.notes?.takeIf { it.isNotEmpty() }?.let { notes ->
+                            Text(
+                                text = notes,
+                                modifier = Modifier.padding(start = 10.dp),
+                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+
                         Box(modifier = Modifier.weight(1f))
 
                         if (carbs.ids.nightscoutId != null) {
-                            Text(
-                                text = "NS",
-                                modifier = Modifier.padding(start = 5.dp),
-                                fontSize = 14.sp,
-                                color = Color(elementColors.tempTarget.value)
+                            Icon(
+                                imageVector = Ns,
+                                contentDescription = "Nightscout",
+                                modifier = Modifier
+                                    .size(21.dp)
+                                    .padding(start = 5.dp)
                             )
                         }
 
                         if (carbs.ids.isPumpHistory()) {
-                            Text(
-                                text = "PH",
-                                modifier = Modifier.padding(start = 5.dp),
-                                fontSize = 14.sp,
-                                color = Color(elementColors.tempTarget.value)
+                            Icon(
+                                imageVector = Pump,
+                                contentDescription = "Pump History",
+                                modifier = Modifier
+                                    .size(21.dp)
+                                    .padding(start = 5.dp)
                             )
                         }
 
@@ -634,15 +690,16 @@ private fun MealLinkItem(
                 }
             }
 
-            // Notes
-            val notes = mealLink.carbs?.notes ?: mealLink.bolus?.notes ?: ""
-            if (notes.isNotEmpty()) {
-                Text(
-                    text = notes,
-                    modifier = Modifier.padding(start = 20.dp, end = 10.dp, bottom = 5.dp),
-                    fontSize = 12.sp,
-                    style = MaterialTheme.typography.bodySmall
-                )
+            // Bolus notes (carbs notes are shown inline)
+            mealLink.bolus?.let { bolus ->
+                bolus.notes?.takeIf { it.isNotEmpty() && mealLink.carbs == null }?.let { notes ->
+                    Text(
+                        text = notes,
+                        modifier = Modifier.padding(start = 20.dp, end = 10.dp, bottom = 5.dp),
+                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
             }
         }
     }

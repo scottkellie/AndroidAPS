@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for insulin pump.
  * Represents the insulin pump device with display and buttons.
+ *
+ * Bounding box: x: 4-44, y: 1.5-46.5 (viewport: 48x48, includes stroke, ~83% width)
  */
 val Pump: ImageVector by lazy {
     ImageVector.Builder(
@@ -27,21 +29,21 @@ val Pump: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 2f,
+            strokeLineWidth = 2.5f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(14f, 8f)
-            lineTo(34f, 8f)
-            arcTo(4f, 4f, 0f, false, true, 38f, 12f)
-            lineTo(38f, 36f)
-            arcTo(4f, 4f, 0f, false, true, 34f, 40f)
-            lineTo(14f, 40f)
-            arcTo(4f, 4f, 0f, false, true, 10f, 36f)
-            lineTo(10f, 12f)
-            arcTo(4f, 4f, 0f, false, true, 14f, 8f)
+            moveTo(11.5f, 4f)
+            lineTo(36.5f, 4f)
+            arcTo(5f, 5f, 0f, false, true, 41.5f, 9f)
+            lineTo(41.5f, 39f)
+            arcTo(5f, 5f, 0f, false, true, 36.5f, 44f)
+            lineTo(11.5f, 44f)
+            arcTo(5f, 5f, 0f, false, true, 6.5f, 39f)
+            lineTo(6.5f, 9f)
+            arcTo(5f, 5f, 0f, false, true, 11.5f, 4f)
             close()
         }
         // Display screen
@@ -50,21 +52,21 @@ val Pump: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 2f,
+            strokeLineWidth = 2.5f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(15.6f, 12f)
-            lineTo(32.4f, 12f)
-            arcTo(1.6f, 1.6f, 0f, false, true, 34f, 13.6f)
-            lineTo(34f, 18.4f)
-            arcTo(1.6f, 1.6f, 0f, false, true, 32.4f, 20f)
-            lineTo(15.6f, 20f)
-            arcTo(1.6f, 1.6f, 0f, false, true, 14f, 18.4f)
-            lineTo(14f, 13.6f)
-            arcTo(1.6f, 1.6f, 0f, false, true, 15.6f, 12f)
+            moveTo(13.5f, 9f)
+            lineTo(34.5f, 9f)
+            arcTo(2f, 2f, 0f, false, true, 36.5f, 11f)
+            lineTo(36.5f, 17f)
+            arcTo(2f, 2f, 0f, false, true, 34.5f, 19f)
+            lineTo(13.5f, 19f)
+            arcTo(2f, 2f, 0f, false, true, 11.5f, 17f)
+            lineTo(11.5f, 11f)
+            arcTo(2f, 2f, 0f, false, true, 13.5f, 9f)
             close()
         }
         // Top center button
@@ -73,21 +75,21 @@ val Pump: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 2f,
+            strokeLineWidth = 2.5f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(22.6f, 24f)
-            lineTo(25.4f, 24f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 26f, 24.6f)
-            lineTo(26f, 27.4f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 25.4f, 28f)
-            lineTo(22.6f, 28f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 22f, 27.4f)
-            lineTo(22f, 24.6f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 22.6f, 24f)
+            moveTo(22.25f, 24f)
+            lineTo(25.75f, 24f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 26.5f, 24.75f)
+            lineTo(26.5f, 28.25f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 25.75f, 29f)
+            lineTo(22.25f, 29f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 21.5f, 28.25f)
+            lineTo(21.5f, 24.75f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 22.25f, 24f)
             close()
         }
         // Bottom center button
@@ -96,21 +98,21 @@ val Pump: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 2f,
+            strokeLineWidth = 2.5f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(22.6f, 30f)
-            lineTo(25.4f, 30f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 26f, 30.6f)
-            lineTo(26f, 33.4f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 25.4f, 34f)
-            lineTo(22.6f, 34f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 22f, 33.4f)
-            lineTo(22f, 30.6f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 22.6f, 30f)
+            moveTo(22.25f, 31.5f)
+            lineTo(25.75f, 31.5f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 26.5f, 32.25f)
+            lineTo(26.5f, 35.75f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 25.75f, 36.5f)
+            lineTo(22.25f, 36.5f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 21.5f, 35.75f)
+            lineTo(21.5f, 32.25f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 22.25f, 31.5f)
             close()
         }
         // Left button
@@ -119,21 +121,21 @@ val Pump: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 2f,
+            strokeLineWidth = 2.5f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(18.6f, 27f)
-            lineTo(21.4f, 27f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 22f, 27.6f)
-            lineTo(22f, 30.4f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 21.4f, 31f)
-            lineTo(18.6f, 31f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 18f, 30.4f)
-            lineTo(18f, 27.6f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 18.6f, 27f)
+            moveTo(17.25f, 27.75f)
+            lineTo(20.75f, 27.75f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 21.5f, 28.5f)
+            lineTo(21.5f, 32f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 20.75f, 32.75f)
+            lineTo(17.25f, 32.75f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 16.5f, 32f)
+            lineTo(16.5f, 28.5f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 17.25f, 27.75f)
             close()
         }
         // Right button
@@ -142,21 +144,21 @@ val Pump: ImageVector by lazy {
             fillAlpha = 1.0f,
             stroke = SolidColor(Color.Black),
             strokeAlpha = 1.0f,
-            strokeLineWidth = 2f,
+            strokeLineWidth = 2.5f,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(26.6f, 27f)
-            lineTo(29.4f, 27f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 30f, 27.6f)
-            lineTo(30f, 30.4f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 29.4f, 31f)
-            lineTo(26.6f, 31f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 26f, 30.4f)
-            lineTo(26f, 27.6f)
-            arcTo(0.6f, 0.6f, 0f, false, true, 26.6f, 27f)
+            moveTo(27.25f, 27.75f)
+            lineTo(30.75f, 27.75f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 31.5f, 28.5f)
+            lineTo(31.5f, 32f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 30.75f, 32.75f)
+            lineTo(27.25f, 32.75f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 26.5f, 32f)
+            lineTo(26.5f, 28.5f)
+            arcTo(0.75f, 0.75f, 0f, false, true, 27.25f, 27.75f)
             close()
         }
     }.build()

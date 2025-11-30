@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Careportal/Note treatment type.
  * Represents careportal entries and notes.
+ *
+ * Bounding box: x: 50-896, y: 42-906 (viewport: 960x960, ~90% height)
  */
 val Careportal: ImageVector by lazy {
     ImageVector.Builder(
@@ -32,28 +34,28 @@ val Careportal: ImageVector by lazy {
             strokeLineMiter = 1.0f,
             pathFillType = PathFillType.NonZero
         ) {
-            moveTo(167f, 840f)
-            quadToRelative(-21f, 5f, -36.5f, -10.5f)
-            reflectiveQuadTo(120f, 793f)
-            lineToRelative(40f, -191f)
-            lineToRelative(198f, 198f)
-            lineToRelative(-191f, 40f)
+            moveTo(107.67f, 906.44f)
+            quadToRelative(-24.93f, 5.93f, -43.33f, -12.47f)
+            reflectiveQuadTo(50.44f, 850.64f)
+            lineToRelative(47.48f, -226.73f)
+            lineToRelative(235.13f, 235.13f)
+            lineToRelative(-226.73f, 47.48f)
             close()
-            moveTo(358f, 800f)
-            lineTo(160f, 602f)
-            lineToRelative(473f, -473f)
-            quadToRelative(17f, -17f, 42f, -17f)
-            reflectiveQuadToRelative(42f, 17f)
-            lineToRelative(114f, 114f)
-            quadToRelative(17f, 17f, 17f, 42f)
-            reflectiveQuadToRelative(-17f, 42f)
-            lineTo(358f, 800f)
+            moveTo(333.05f, 906.44f)
+            lineTo(97.92f, 671.31f)
+            lineToRelative(561.28f, -561.28f)
+            quadToRelative(20.18f, 20.18f, 49.85f, 20.18f)
+            reflectiveQuadToRelative(49.85f, 20.18f)
+            lineToRelative(135.28f, 135.28f)
+            quadToRelative(20.18f, 20.18f, 20.18f, 49.85f)
+            reflectiveQuadToRelative(-20.18f, 49.85f)
+            lineTo(333.05f, 906.44f)
             close()
-            moveTo(675f, 172f)
-            lineTo(233f, 614f)
-            lineToRelative(113f, 113f)
-            lineToRelative(442f, -442f)
-            lineToRelative(-113f, -113f)
+            moveTo(721.05f, 134.24f)
+            lineTo(190.79f, 664.5f)
+            lineToRelative(134.11f, 134.11f)
+            lineToRelative(524.56f, -524.56f)
+            lineToRelative(-134.11f, -134.11f)
             close()
         }
     }.build()

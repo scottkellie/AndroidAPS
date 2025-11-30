@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 /**
  * Icon for Extended Bolus treatment type.
  * Represents extended or dual-wave bolus deliveries.
+ *
+ * Bounding box: x: 1.227-14.768, y: 0.288-15.119 (viewport: 15x16)
  */
 val ExtendedBolus: ImageVector by lazy {
     ImageVector.Builder(
