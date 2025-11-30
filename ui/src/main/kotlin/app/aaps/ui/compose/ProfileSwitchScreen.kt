@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -40,7 +41,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import app.aaps.core.ui.compose.icons.Ns
 import app.aaps.core.ui.compose.icons.Pump
@@ -262,11 +265,17 @@ fun ProfileSwitchScreen(
                 }
 
                 else -> {
-                    // Group items by day for sticky headers
-                    val groupedByDay = profileSwitches.groupBy { ps ->
-                        val timestamp = ps.timestamp
-                        dateUtil.dateString(timestamp)
+                    // Group items by day for sticky headers (optimized with derivedStateOf)
+                    val groupedByDay by remember {
+                        derivedStateOf {
+                            profileSwitches.groupBy { ps ->
+                                val timestamp = ps.timestamp
+                                dateUtil.dateString(timestamp)
+                            }
+                        }
                     }
+
+                    val haptic = LocalHapticFeedback.current
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -299,6 +308,8 @@ fun ProfileSwitchScreen(
                                     isSelected = selectedItems.contains(profileSwitch),
                                     onClick = {
                                         if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
+                                            // Haptic feedback for selection toggle
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             // Toggle selection
                                             if (selectedItems.contains(profileSwitch)) {
                                                 selectedItems.remove(profileSwitch)
@@ -309,6 +320,8 @@ fun ProfileSwitchScreen(
                                     },
                                     onLongPress = {
                                         if (profileSwitch is ProfileSealed.PS && profileSwitch.isValid && !isRemovingMode) {
+                                            // Haptic feedback for selection mode entry
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             // Enter selection mode and select this item
                                             isRemovingMode = true
                                             selectedItems.clear()

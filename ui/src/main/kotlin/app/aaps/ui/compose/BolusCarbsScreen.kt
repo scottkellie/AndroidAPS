@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -323,11 +326,17 @@ fun BolusCarbsScreen(
                     }
 
                     else -> {
-                        // Group items by day for sticky headers
-                        val groupedByDay = mealLinks.groupBy { ml ->
-                            val timestamp = ml.bolusCalculatorResult?.timestamp ?: ml.bolus?.timestamp ?: ml.carbs?.timestamp ?: 0L
-                            dateUtil.dateString(timestamp)
+                        // Group items by day for sticky headers (optimized with derivedStateOf)
+                        val groupedByDay by remember {
+                            derivedStateOf {
+                                mealLinks.groupBy { ml ->
+                                    val timestamp = ml.bolusCalculatorResult?.timestamp ?: ml.bolus?.timestamp ?: ml.carbs?.timestamp ?: 0L
+                                    dateUtil.dateString(timestamp)
+                                }
+                            }
                         }
+
+                        val haptic = LocalHapticFeedback.current
 
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
@@ -363,6 +372,8 @@ fun BolusCarbsScreen(
                                         isSelected = selectedItems.contains(ml),
                                         onClick = {
                                             if (isRemovingMode && ml.isValid()) {
+                                                // Haptic feedback for selection toggle
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 // Toggle selection
                                                 if (selectedItems.contains(ml)) {
                                                     selectedItems.remove(ml)
@@ -373,6 +384,8 @@ fun BolusCarbsScreen(
                                         },
                                         onLongPress = {
                                             if (ml.isValid() && !isRemovingMode) {
+                                                // Haptic feedback for selection mode entry
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                 // Enter selection mode and select this item
                                                 isRemovingMode = true
                                                 selectedItems.clear()
