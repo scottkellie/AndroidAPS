@@ -37,6 +37,7 @@ val LocalRxBus = compositionLocalOf<RxBus> { error("No RxBus provided") }
  *
  * **Available Color Schemes:**
  * - profileHelperColors: Colors for profile viewer and comparison screens
+ * - treatmentIconColors: Colors for treatment tab icons
  *
  * **Usage:**
  * ```kotlin
@@ -44,6 +45,12 @@ val LocalRxBus = compositionLocalOf<RxBus> { error("No RxBus provided") }
  * fun MyProfileGraph() {
  *     val colors = AapsTheme.profileHelperColors
  *     LineChart(color = colors.profile1)  // Use blue for primary profile
+ * }
+ *
+ * @Composable
+ * fun MyTreatmentTab() {
+ *     val colors = AapsTheme.treatmentIconColors
+ *     Icon(tint = colors.bolusCarbs)  // Use orange for bolus/carbs icon
  * }
  * ```
  */
@@ -61,6 +68,17 @@ object AapsTheme {
         @Composable
         @ReadOnlyComposable
         get() = LocalProfileHelperColors.current
+
+    /**
+     * Color scheme for for basic elements.
+     *
+     * Automatically adapts to light/dark mode based on current theme.
+     *
+     */
+    val elementColors: ElementColors
+        @Composable
+        @ReadOnlyComposable
+        get() = LocalElementColors.current
 }
 
 /**
@@ -181,8 +199,12 @@ fun AapsTheme(
 
     val scheme = if (isDark) darkColors else lightColors
     val profileViewerColors = if (isDark) DarkProfileHelperColors else LightProfileHelperColors
+    val treatmentIconColors = if (isDark) DarkElementColors else LightElementColors
 
-    CompositionLocalProvider(LocalProfileHelperColors provides profileViewerColors) {
+    CompositionLocalProvider(
+        LocalProfileHelperColors provides profileViewerColors,
+        LocalElementColors provides treatmentIconColors
+    ) {
         MaterialTheme(
             colorScheme = scheme,
             content = content
