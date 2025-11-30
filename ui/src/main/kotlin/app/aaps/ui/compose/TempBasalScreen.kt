@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,6 +83,7 @@ import kotlin.math.abs
  * @param uiInteraction UI interaction helper for showing dialogs
  * @param rxBus RxBus for observing temp basal changes
  * @param aapsSchedulers Schedulers for RxJava operations
+ * @param setToolbarActions Callback to set the toolbar actions
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +96,8 @@ fun TempBasalScreen(
     decimalFormatter: DecimalFormatter,
     uiInteraction: UiInteraction,
     rxBus: RxBus,
-    aapsSchedulers: AapsSchedulers
+    aapsSchedulers: AapsSchedulers,
+    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -156,123 +160,118 @@ fun TempBasalScreen(
         }
     }
 
-    AapsTheme {
-        val elementColors = AapsTheme.elementColors
+    // Update toolbar actions whenever state changes
+    SideEffect {
+        setToolbarActions {
+            // Show/Hide invalidated button
+            IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                Icon(
+                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Action bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Show/Hide invalidated button
-                IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                    Icon(
-                        imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // Delete button
-                IconButton(
-                    onClick = {
-                        if (isRemovingMode) {
-                            // Confirm and remove
-                            if (selectedItems.isNotEmpty()) {
-                                val confirmationText = if (selectedItems.size == 1) {
-                                    val tempBasal = selectedItems[0]
-                                    val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
-                                    val profile = profileFunction.getProfile(dateUtil.now())
-                                    if (profile != null) {
-                                        "${if (isFakeExtended) rh.gs(app.aaps.core.ui.R.string.extended_bolus) else rh.gs(app.aaps.core.ui.R.string.tempbasal_label)}: ${
-                                            tempBasal.toStringFull(
-                                                profile,
-                                                dateUtil,
-                                                rh
-                                            )
-                                        }\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(tempBasal.timestamp)}"
-                                    } else {
-                                        rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                                    }
+            // Delete button
+            IconButton(
+                onClick = {
+                    if (isRemovingMode) {
+                        // Confirm and remove
+                        if (selectedItems.isNotEmpty()) {
+                            val confirmationText = if (selectedItems.size == 1) {
+                                val tempBasal = selectedItems[0]
+                                val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
+                                val profile = profileFunction.getProfile(dateUtil.now())
+                                if (profile != null) {
+                                    "${if (isFakeExtended) rh.gs(app.aaps.core.ui.R.string.extended_bolus) else rh.gs(app.aaps.core.ui.R.string.tempbasal_label)}: ${
+                                        tempBasal.toStringFull(
+                                            profile,
+                                            dateUtil,
+                                            rh
+                                        )
+                                    }\n${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(tempBasal.timestamp)}"
                                 } else {
                                     rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
                                 }
+                            } else {
+                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                            }
 
-                                uiInteraction.showOkCancelDialog(
-                                    context = context,
-                                    title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                    message = confirmationText,
-                                    ok = {
-                                        selectedItems.forEach { tempBasal ->
-                                            val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
-                                            if (isFakeExtended) {
-                                                val extendedBolus = persistenceLayer.getExtendedBolusActiveAt(tempBasal.timestamp)
-                                                if (extendedBolus != null) {
-                                                    persistenceLayer.invalidateExtendedBolus(
-                                                        id = extendedBolus.id,
-                                                        action = Action.EXTENDED_BOLUS_REMOVED,
-                                                        source = Sources.Treatments,
-                                                        listValues = listOf(
-                                                            ValueWithUnit.Timestamp(extendedBolus.timestamp),
-                                                            ValueWithUnit.Insulin(extendedBolus.amount),
-                                                            ValueWithUnit.UnitPerHour(extendedBolus.rate),
-                                                            ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(extendedBolus.duration).toInt())
-                                                        )
-                                                    ).subscribe()
-                                                }
-                                            } else {
-                                                persistenceLayer.invalidateTemporaryBasal(
-                                                    id = tempBasal.id,
-                                                    action = Action.TEMP_BASAL_REMOVED,
+                            uiInteraction.showOkCancelDialog(
+                                context = context,
+                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                message = confirmationText,
+                                ok = {
+                                    selectedItems.forEach { tempBasal ->
+                                        val isFakeExtended = tempBasal.type == TB.Type.FAKE_EXTENDED
+                                        if (isFakeExtended) {
+                                            val extendedBolus = persistenceLayer.getExtendedBolusActiveAt(tempBasal.timestamp)
+                                            if (extendedBolus != null) {
+                                                persistenceLayer.invalidateExtendedBolus(
+                                                    id = extendedBolus.id,
+                                                    action = Action.EXTENDED_BOLUS_REMOVED,
                                                     source = Sources.Treatments,
                                                     listValues = listOf(
-                                                        ValueWithUnit.Timestamp(tempBasal.timestamp),
-                                                        if (tempBasal.isAbsolute) ValueWithUnit.UnitPerHour(tempBasal.rate) else ValueWithUnit.Percent(tempBasal.rate.toInt()),
-                                                        ValueWithUnit.Minute(T.msecs(tempBasal.duration).mins().toInt())
+                                                        ValueWithUnit.Timestamp(extendedBolus.timestamp),
+                                                        ValueWithUnit.Insulin(extendedBolus.amount),
+                                                        ValueWithUnit.UnitPerHour(extendedBolus.rate),
+                                                        ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(extendedBolus.duration).toInt())
                                                     )
                                                 ).subscribe()
                                             }
+                                        } else {
+                                            persistenceLayer.invalidateTemporaryBasal(
+                                                id = tempBasal.id,
+                                                action = Action.TEMP_BASAL_REMOVED,
+                                                source = Sources.Treatments,
+                                                listValues = listOf(
+                                                    ValueWithUnit.Timestamp(tempBasal.timestamp),
+                                                    if (tempBasal.isAbsolute) ValueWithUnit.UnitPerHour(tempBasal.rate) else ValueWithUnit.Percent(tempBasal.rate.toInt()),
+                                                    ValueWithUnit.Minute(T.msecs(tempBasal.duration).mins().toInt())
+                                                )
+                                            ).subscribe()
                                         }
-                                        selectedItems.clear()
-                                        isRemovingMode = false
-                                        refreshKey++
                                     }
-                                )
-                            }
-                        } else {
-                            // Enter removing mode
-                            isRemovingMode = true
-                            selectedItems.clear()
+                                    selectedItems.clear()
+                                    isRemovingMode = false
+                                    refreshKey++
+                                }
+                            )
                         }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Remove items",
-                        tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // Cancel button when in removing mode
-                if (isRemovingMode) {
-                    IconButton(onClick = {
-                        isRemovingMode = false
+                    } else {
+                        // Enter removing mode
+                        isRemovingMode = true
                         selectedItems.clear()
-                    }) {
-                        Text(
-                            text = stringResource(android.R.string.cancel),
-                            color = MaterialTheme.colorScheme.primary
-                        )
                     }
                 }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove items",
+                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
             }
 
-            // Content
-            Box(modifier = Modifier.fillMaxSize()) {
+            // Cancel button when in removing mode
+            if (isRemovingMode) {
+                IconButton(onClick = {
+                    isRemovingMode = false
+                    selectedItems.clear()
+                }) {
+                    Text(
+                        text = stringResource(android.R.string.cancel),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
+    AapsTheme {
+        val elementColors = AapsTheme.elementColors
+
+        // Content
+        Box(modifier = Modifier.fillMaxSize()) {
                 when {
                     isLoading -> {
                         CircularProgressIndicator(
@@ -324,7 +323,6 @@ fun TempBasalScreen(
                         }
                     }
                 }
-            }
         }
     }
 }

@@ -47,7 +47,8 @@ class TreatmentsUserEntryFragment : DaggerFragment(), MenuProvider {
                     dateUtil = dateUtil,
                     userEntryPresentationHelper = userEntryPresentationHelper,
                     rxBus = rxBus,
-                    aapsSchedulers = aapsSchedulers
+                    aapsSchedulers = aapsSchedulers,
+                    setToolbarActions = { } // No-op for fragment usage
                 )
             }
         }

@@ -42,7 +42,8 @@ class TreatmentsTemporaryBasalsFragment : DaggerFragment() {
                     decimalFormatter = decimalFormatter,
                     uiInteraction = uiInteraction,
                     rxBus = rxBus,
-                    aapsSchedulers = aapsSchedulers
+                    aapsSchedulers = aapsSchedulers,
+                    setToolbarActions = { } // No-op for fragment usage
                 )
             }
         }

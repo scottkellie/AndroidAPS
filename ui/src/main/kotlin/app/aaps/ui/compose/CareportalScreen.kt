@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,7 +89,8 @@ fun CareportalScreen(
     dateUtil: DateUtil,
     uiInteraction: UiInteraction,
     rxBus: RxBus,
-    aapsSchedulers: AapsSchedulers
+    aapsSchedulers: AapsSchedulers,
+    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -131,175 +134,169 @@ fun CareportalScreen(
         }
     }
 
-    AapsTheme {
-        val elementColors = AapsTheme.elementColors
+    // Update toolbar actions whenever state changes
+    SideEffect {
+        setToolbarActions {
+            // Show/Hide invalidated button
+            IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                Icon(
+                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Action bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
+            // Delete button
+            IconButton(
+                onClick = {
+                    if (isRemovingMode) {
+                        // Confirm and remove
+                        if (selectedItems.isNotEmpty()) {
+                            val confirmationText = if (selectedItems.size == 1) {
+                                val te = selectedItems[0]
+                                "${rh.gs(app.aaps.core.ui.R.string.event_type)}: ${translator.translate(te.type)}\n" +
+                                    "${rh.gs(app.aaps.core.ui.R.string.notes_label)}: ${te.note ?: ""}\n" +
+                                    "${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(te.timestamp)}"
+                            } else {
+                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                            }
+
+                            uiInteraction.showOkCancelDialog(
+                                context = context,
+                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                message = confirmationText,
+                                ok = {
+                                    selectedItems.forEach { te ->
+                                        persistenceLayer.invalidateTherapyEvent(
+                                            id = te.id,
+                                            action = Action.CAREPORTAL_REMOVED,
+                                            source = Sources.Treatments,
+                                            note = te.note,
+                                            listValues = listOf(
+                                                ValueWithUnit.Timestamp(te.timestamp),
+                                                ValueWithUnit.TEType(te.type)
+                                            )
+                                        ).subscribe()
+                                    }
+                                    selectedItems.clear()
+                                    isRemovingMode = false
+                                    refreshKey++
+                                }
+                            )
+                        }
+                    } else {
+                        // Enter removing mode
+                        isRemovingMode = true
+                        selectedItems.clear()
+                    }
+                }
             ) {
-                // Show/Hide invalidated button
-                IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove items",
+                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Menu button (for remove started events)
+            Box {
+                IconButton(onClick = { showMenu = true }) {
                     Icon(
-                        imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-
-                // Delete button
-                IconButton(
-                    onClick = {
-                        if (isRemovingMode) {
-                            // Confirm and remove
-                            if (selectedItems.isNotEmpty()) {
-                                val confirmationText = if (selectedItems.size == 1) {
-                                    val te = selectedItems[0]
-                                    "${rh.gs(app.aaps.core.ui.R.string.event_type)}: ${translator.translate(te.type)}\n" +
-                                        "${rh.gs(app.aaps.core.ui.R.string.notes_label)}: ${te.note ?: ""}\n" +
-                                        "${rh.gs(app.aaps.core.ui.R.string.date)}: ${dateUtil.dateAndTimeString(te.timestamp)}"
-                                } else {
-                                    rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                                }
-
-                                uiInteraction.showOkCancelDialog(
-                                    context = context,
-                                    title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                    message = confirmationText,
-                                    ok = {
-                                        selectedItems.forEach { te ->
-                                            persistenceLayer.invalidateTherapyEvent(
-                                                id = te.id,
-                                                action = Action.CAREPORTAL_REMOVED,
-                                                source = Sources.Treatments,
-                                                note = te.note,
-                                                listValues = listOf(
-                                                    ValueWithUnit.Timestamp(te.timestamp),
-                                                    ValueWithUnit.TEType(te.type)
-                                                )
-                                            ).subscribe()
-                                        }
-                                        selectedItems.clear()
-                                        isRemovingMode = false
-                                        refreshKey++
-                                    }
-                                )
-                            }
-                        } else {
-                            // Enter removing mode
-                            isRemovingMode = true
-                            selectedItems.clear()
-                        }
-                    }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Remove items",
-                        tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.careportal_remove_started_events)) },
+                        onClick = {
+                            showMenu = false
+                            uiInteraction.showOkCancelDialog(
+                                context = context,
+                                title = rh.gs(app.aaps.core.ui.R.string.careportal),
+                                message = rh.gs(R.string.careportal_remove_started_events),
+                                ok = {
+                                    persistenceLayer.invalidateTherapyEventsWithNote(
+                                        rh.gs(app.aaps.core.ui.R.string.androidaps_start),
+                                        Action.RESTART_EVENTS_REMOVED,
+                                        Sources.Treatments
+                                    ).subscribe()
+                                    refreshKey++
+                                }
+                            )
+                        }
                     )
-                }
-
-                // Menu button (for remove started events)
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More options",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.careportal_remove_started_events)) },
-                            onClick = {
-                                showMenu = false
-                                uiInteraction.showOkCancelDialog(
-                                    context = context,
-                                    title = rh.gs(app.aaps.core.ui.R.string.careportal),
-                                    message = rh.gs(R.string.careportal_remove_started_events),
-                                    ok = {
-                                        persistenceLayer.invalidateTherapyEventsWithNote(
-                                            rh.gs(app.aaps.core.ui.R.string.androidaps_start),
-                                            Action.RESTART_EVENTS_REMOVED,
-                                            Sources.Treatments
-                                        ).subscribe()
-                                        refreshKey++
-                                    }
-                                )
-                            }
-                        )
-                    }
-                }
-
-                // Cancel button when in removing mode
-                if (isRemovingMode) {
-                    IconButton(onClick = {
-                        isRemovingMode = false
-                        selectedItems.clear()
-                    }) {
-                        Text(
-                            text = stringResource(android.R.string.cancel),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             }
 
-            // Content
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    isLoading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
+            // Cancel button when in removing mode
+            if (isRemovingMode) {
+                IconButton(onClick = {
+                    isRemovingMode = false
+                    selectedItems.clear()
+                }) {
+                    Text(
+                        text = stringResource(android.R.string.cancel),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
 
-                    therapyEvents.isEmpty() -> {
-                        Text(
-                            text = stringResource(R.string.no_records_available),
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(50.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
+    AapsTheme {
+        val elementColors = AapsTheme.elementColors
 
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            itemsIndexed(
-                                items = therapyEvents,
-                                key = { _, item -> item.id }
-                            ) { index, te ->
-                                TherapyEventItem(
-                                    therapyEvent = te,
-                                    showDate = index == 0 || !dateUtil.isSameDayGroup(te.timestamp, therapyEvents[index - 1].timestamp),
-                                    isRemovingMode = isRemovingMode,
-                                    isSelected = selectedItems.contains(te),
-                                    onSelectionChange = { selected ->
-                                        if (selected) {
-                                            selectedItems.add(te)
-                                        } else {
-                                            selectedItems.remove(te)
-                                        }
-                                    },
-                                    profileUtil = profileUtil,
-                                    rh = rh,
-                                    translator = translator,
-                                    dateUtil = dateUtil,
-                                    elementColors = elementColors
-                                )
-                            }
+        // Content
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+
+                therapyEvents.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.no_records_available),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(50.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        itemsIndexed(
+                            items = therapyEvents,
+                            key = { _, item -> item.id }
+                        ) { index, te ->
+                            TherapyEventItem(
+                                therapyEvent = te,
+                                showDate = index == 0 || !dateUtil.isSameDayGroup(te.timestamp, therapyEvents[index - 1].timestamp),
+                                isRemovingMode = isRemovingMode,
+                                isSelected = selectedItems.contains(te),
+                                onSelectionChange = { selected ->
+                                    if (selected) {
+                                        selectedItems.add(te)
+                                    } else {
+                                        selectedItems.remove(te)
+                                    }
+                                },
+                                profileUtil = profileUtil,
+                                rh = rh,
+                                translator = translator,
+                                dateUtil = dateUtil,
+                                elementColors = elementColors
+                            )
                         }
                     }
                 }

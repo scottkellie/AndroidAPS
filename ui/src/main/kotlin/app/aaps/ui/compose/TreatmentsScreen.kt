@@ -2,6 +2,7 @@ package app.aaps.ui.compose
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,8 +19,11 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -87,6 +91,7 @@ fun TreatmentsScreen(
     onNavigateBack: () -> Unit
 ) {
     val iconColors = AapsTheme.elementColors
+    var toolbarActions by remember { mutableStateOf<(@Composable RowScope.() -> Unit)?>(null) }
 
     // Define tabs with their icons and content
     val tabs = remember(showExtendedBolusTab) {
@@ -106,7 +111,8 @@ fun TreatmentsScreen(
                             decimalFormatter = decimalFormatter,
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -126,7 +132,8 @@ fun TreatmentsScreen(
                                 dateUtil = dateUtil,
                                 uiInteraction = uiInteraction,
                                 rxBus = rxBus,
-                                aapsSchedulers = aapsSchedulers
+                                aapsSchedulers = aapsSchedulers,
+                                setToolbarActions = { actions -> toolbarActions = actions }
                             )
                         }
                     )
@@ -147,7 +154,8 @@ fun TreatmentsScreen(
                             decimalFormatter = decimalFormatter,
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -167,7 +175,8 @@ fun TreatmentsScreen(
                             decimalFormatter = decimalFormatter,
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -185,7 +194,8 @@ fun TreatmentsScreen(
                             decimalFormatter = decimalFormatter,
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -204,7 +214,8 @@ fun TreatmentsScreen(
                             dateUtil = dateUtil,
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -222,7 +233,8 @@ fun TreatmentsScreen(
                             dateUtil = dateUtil,
                             uiInteraction = uiInteraction,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -239,7 +251,8 @@ fun TreatmentsScreen(
                             dateUtil = dateUtil,
                             userEntryPresentationHelper = userEntryPresentationHelper,
                             rxBus = rxBus,
-                            aapsSchedulers = aapsSchedulers
+                            aapsSchedulers = aapsSchedulers,
+                            setToolbarActions = { actions -> toolbarActions = actions }
                         )
                     }
                 )
@@ -261,6 +274,9 @@ fun TreatmentsScreen(
                             contentDescription = stringResource(app.aaps.core.ui.R.string.back)
                         )
                     }
+                },
+                actions = {
+                    toolbarActions?.invoke(this)
                 }
             )
         }

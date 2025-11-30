@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,7 +84,8 @@ fun ProfileSwitchScreen(
     decimalFormatter: DecimalFormatter,
     uiInteraction: UiInteraction,
     rxBus: RxBus,
-    aapsSchedulers: AapsSchedulers
+    aapsSchedulers: AapsSchedulers,
+    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -137,140 +140,134 @@ fun ProfileSwitchScreen(
         persistenceLayer.getEffectiveProfileSwitchActiveAt(dateUtil.now())
     }
 
+    // Update toolbar actions whenever state changes
+    SideEffect {
+        setToolbarActions {
+            // Show/Hide invalidated button
+            IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                Icon(
+                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Delete button
+            IconButton(
+                onClick = {
+                    if (isRemovingMode) {
+                        // Confirm and remove
+                        if (selectedItems.isNotEmpty()) {
+                            val confirmationText = if (selectedItems.size == 1) {
+                                val ps = selectedItems[0]
+                                "${rh.gs(app.aaps.core.ui.R.string.careportal_profileswitch)}: ${ps.profileName}\n${dateUtil.dateAndTimeString(ps.timestamp)}"
+                            } else {
+                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                            }
+
+                            uiInteraction.showOkCancelDialog(
+                                context = context,
+                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                message = confirmationText,
+                                ok = {
+                                    selectedItems.forEach { profileSwitch ->
+                                        if (profileSwitch is ProfileSealed.PS) {
+                                            persistenceLayer.invalidateProfileSwitch(
+                                                id = profileSwitch.id,
+                                                action = Action.PROFILE_SWITCH_REMOVED,
+                                                source = Sources.Treatments,
+                                                note = profileSwitch.profileName,
+                                                listValues = listOf(
+                                                    ValueWithUnit.Timestamp(profileSwitch.timestamp)
+                                                )
+                                            ).subscribe()
+                                        }
+                                    }
+                                    selectedItems.clear()
+                                    isRemovingMode = false
+                                    refreshKey++
+                                }
+                            )
+                        }
+                    } else {
+                        // Enter removing mode
+                        isRemovingMode = true
+                        selectedItems.clear()
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove items",
+                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Cancel button when in removing mode
+            if (isRemovingMode) {
+                IconButton(onClick = {
+                    isRemovingMode = false
+                    selectedItems.clear()
+                }) {
+                    Text(
+                        text = stringResource(android.R.string.cancel),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
     AapsTheme {
         val elementColors = AapsTheme.elementColors
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Action bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Show/Hide invalidated button
-                IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                    Icon(
-                        imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                        tint = MaterialTheme.colorScheme.primary
+        // Content
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
 
-                // Delete button
-                IconButton(
-                    onClick = {
-                        if (isRemovingMode) {
-                            // Confirm and remove
-                            if (selectedItems.isNotEmpty()) {
-                                val confirmationText = if (selectedItems.size == 1) {
-                                    val ps = selectedItems[0]
-                                    "${rh.gs(app.aaps.core.ui.R.string.careportal_profileswitch)}: ${ps.profileName}\n${dateUtil.dateAndTimeString(ps.timestamp)}"
-                                } else {
-                                    rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                                }
+                profileSwitches.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.no_records_available),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(50.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
 
-                                uiInteraction.showOkCancelDialog(
-                                    context = context,
-                                    title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                    message = confirmationText,
-                                    ok = {
-                                        selectedItems.forEach { profileSwitch ->
-                                            if (profileSwitch is ProfileSealed.PS) {
-                                                persistenceLayer.invalidateProfileSwitch(
-                                                    id = profileSwitch.id,
-                                                    action = Action.PROFILE_SWITCH_REMOVED,
-                                                    source = Sources.Treatments,
-                                                    note = profileSwitch.profileName,
-                                                    listValues = listOf(
-                                                        ValueWithUnit.Timestamp(profileSwitch.timestamp)
-                                                    )
-                                                ).subscribe()
-                                            }
-                                        }
-                                        selectedItems.clear()
-                                        isRemovingMode = false
-                                        refreshKey++
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        itemsIndexed(
+                            items = profileSwitches,
+                            key = { _, item -> item.id }
+                        ) { index, profileSwitch ->
+                            ProfileSwitchItem(
+                                profileSwitch = profileSwitch,
+                                isActive = profileSwitch.id == currentlyActiveProfile?.id,
+                                isFuture = profileSwitch.timestamp > dateUtil.now(),
+                                showDate = index == 0 || !dateUtil.isSameDayGroup(profileSwitch.timestamp, profileSwitches[index - 1].timestamp),
+                                isRemovingMode = isRemovingMode,
+                                isSelected = selectedItems.contains(profileSwitch),
+                                onSelectionChange = { selected ->
+                                    if (selected) {
+                                        selectedItems.add(profileSwitch)
+                                    } else {
+                                        selectedItems.remove(profileSwitch)
                                     }
-                                )
-                            }
-                        } else {
-                            // Enter removing mode
-                            isRemovingMode = true
-                            selectedItems.clear()
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Remove items",
-                        tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // Cancel button when in removing mode
-                if (isRemovingMode) {
-                    IconButton(onClick = {
-                        isRemovingMode = false
-                        selectedItems.clear()
-                    }) {
-                        Text(
-                            text = stringResource(android.R.string.cancel),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // Content
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    isLoading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-
-                    profileSwitches.isEmpty() -> {
-                        Text(
-                            text = stringResource(R.string.no_records_available),
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(50.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            itemsIndexed(
-                                items = profileSwitches,
-                                key = { _, item -> item.id }
-                            ) { index, profileSwitch ->
-                                ProfileSwitchItem(
-                                    profileSwitch = profileSwitch,
-                                    isActive = profileSwitch.id == currentlyActiveProfile?.id,
-                                    isFuture = profileSwitch.timestamp > dateUtil.now(),
-                                    showDate = index == 0 || !dateUtil.isSameDayGroup(profileSwitch.timestamp, profileSwitches[index - 1].timestamp),
-                                    isRemovingMode = isRemovingMode,
-                                    isSelected = selectedItems.contains(profileSwitch),
-                                    onSelectionChange = { selected ->
-                                        if (selected) {
-                                            selectedItems.add(profileSwitch)
-                                        } else {
-                                            selectedItems.remove(profileSwitch)
-                                        }
-                                    },
-                                    rh = rh,
-                                    dateUtil = dateUtil,
-                                    decimalFormatter = decimalFormatter,
-                                    elementColors = elementColors
-                                )
-                            }
+                                },
+                                rh = rh,
+                                dateUtil = dateUtil,
+                                decimalFormatter = decimalFormatter,
+                                elementColors = elementColors
+                            )
                         }
                     }
                 }

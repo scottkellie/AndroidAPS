@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -69,6 +71,7 @@ import java.util.concurrent.TimeUnit
  * @param userEntryPresentationHelper Helper for formatting user entry display
  * @param rxBus RxBus for observing history data changes
  * @param aapsSchedulers Schedulers for RxJava operations
+ * @param setToolbarActions Lambda to set toolbar action buttons
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,7 +81,8 @@ fun UserEntryScreen(
     dateUtil: DateUtil,
     userEntryPresentationHelper: UserEntryPresentationHelper,
     rxBus: RxBus,
-    aapsSchedulers: AapsSchedulers
+    aapsSchedulers: AapsSchedulers,
+    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -121,87 +125,81 @@ fun UserEntryScreen(
         }
     }
 
-    AapsTheme {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Action bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Show/Hide loop records button
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(
-                            imageVector = if (showLoop) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                            contentDescription = if (showLoop) "Hide loop records" else "Show loop records",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+    // Set toolbar actions
+    SideEffect {
+        setToolbarActions {
+            // Show/Hide loop records button
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = if (showLoop) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (showLoop) "Hide loop records" else "Show loop records",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-                    DropdownMenu(
-                        expanded = showMenu,
-                        onDismissRequest = { showMenu = false }
-                    ) {
-                        if (!showLoop) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.show_loop)) },
-                                onClick = {
-                                    showLoop = true
-                                    showMenu = false
-                                }
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.hide_loop)) },
-                                onClick = {
-                                    showLoop = false
-                                    showMenu = false
-                                }
-                            )
-                        }
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    if (!showLoop) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.show_loop)) },
+                            onClick = {
+                                showLoop = true
+                                showMenu = false
+                            }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.hide_loop)) },
+                            onClick = {
+                                showLoop = false
+                                showMenu = false
+                            }
+                        )
                     }
                 }
             }
+        }
+    }
 
-            // Content
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    isLoading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
+    AapsTheme {
+        // Content
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
 
-                    userEntries.isEmpty() -> {
-                        Text(
-                            text = stringResource(R.string.no_records_available),
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(50.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
+                userEntries.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.no_records_available),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(50.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
 
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            itemsIndexed(
-                                items = userEntries,
-                                key = { _, item -> item.id }
-                            ) { index, ue ->
-                                UserEntryItem(
-                                    userEntry = ue,
-                                    showDate = index == 0 || !dateUtil.isSameDayGroup(ue.timestamp, userEntries[index - 1].timestamp),
-                                    userEntryPresentationHelper = userEntryPresentationHelper,
-                                    rh = rh,
-                                    dateUtil = dateUtil
-                                )
-                            }
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        itemsIndexed(
+                            items = userEntries,
+                            key = { _, item -> item.id }
+                        ) { index, ue ->
+                            UserEntryItem(
+                                userEntry = ue,
+                                showDate = index == 0 || !dateUtil.isSameDayGroup(ue.timestamp, userEntries[index - 1].timestamp),
+                                userEntryPresentationHelper = userEntryPresentationHelper,
+                                rh = rh,
+                                dateUtil = dateUtil
+                            )
                         }
                     }
                 }

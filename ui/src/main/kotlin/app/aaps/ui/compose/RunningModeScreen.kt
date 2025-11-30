@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Visibility
@@ -27,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,7 +83,8 @@ fun RunningModeScreen(
     dateUtil: DateUtil,
     uiInteraction: UiInteraction,
     rxBus: RxBus,
-    aapsSchedulers: AapsSchedulers
+    aapsSchedulers: AapsSchedulers,
+    setToolbarActions: (@Composable RowScope.() -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -128,140 +131,134 @@ fun RunningModeScreen(
         persistenceLayer.getRunningModeActiveAt(dateUtil.now())
     }
 
+    // Update toolbar actions whenever state changes
+    SideEffect {
+        setToolbarActions {
+            // Show/Hide invalidated button
+            IconButton(onClick = { showInvalidated = !showInvalidated }) {
+                Icon(
+                    imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                    contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Delete button
+            IconButton(
+                onClick = {
+                    if (isRemovingMode) {
+                        // Confirm and remove
+                        if (selectedItems.isNotEmpty()) {
+                            val confirmationText = if (selectedItems.size == 1) {
+                                val rm = selectedItems[0]
+                                "${rh.gs(app.aaps.core.ui.R.string.running_mode)}: ${rm.mode.name}\n${dateUtil.dateAndTimeString(rm.timestamp)}"
+                            } else {
+                                rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
+                            }
+
+                            uiInteraction.showOkCancelDialog(
+                                context = context,
+                                title = rh.gs(app.aaps.core.ui.R.string.removerecord),
+                                message = confirmationText,
+                                ok = {
+                                    selectedItems.forEach { rm ->
+                                        persistenceLayer.invalidateRunningMode(
+                                            id = rm.id,
+                                            action = Action.LOOP_REMOVED,
+                                            source = Sources.Treatments,
+                                            note = null,
+                                            listValues = listOfNotNull(
+                                                ValueWithUnit.Timestamp(rm.timestamp),
+                                                ValueWithUnit.RMMode(rm.mode),
+                                                ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(rm.duration).toInt())
+                                            )
+                                        ).subscribe()
+                                    }
+                                    selectedItems.clear()
+                                    isRemovingMode = false
+                                    refreshKey++
+                                }
+                            )
+                        }
+                    } else {
+                        // Enter removing mode
+                        isRemovingMode = true
+                        selectedItems.clear()
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Remove items",
+                    tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+
+            // Cancel button when in removing mode
+            if (isRemovingMode) {
+                IconButton(onClick = {
+                    isRemovingMode = false
+                    selectedItems.clear()
+                }) {
+                    Text(
+                        text = stringResource(android.R.string.cancel),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+
     AapsTheme {
         val elementColors = AapsTheme.elementColors
 
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Action bar
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Show/Hide invalidated button
-                IconButton(onClick = { showInvalidated = !showInvalidated }) {
-                    Icon(
-                        imageVector = if (showInvalidated) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (showInvalidated) "Hide invalidated" else "Show invalidated",
-                        tint = MaterialTheme.colorScheme.primary
+        // Content
+        Box(modifier = Modifier.fillMaxSize()) {
+            when {
+                isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
                     )
                 }
 
-                // Delete button
-                IconButton(
-                    onClick = {
-                        if (isRemovingMode) {
-                            // Confirm and remove
-                            if (selectedItems.isNotEmpty()) {
-                                val confirmationText = if (selectedItems.size == 1) {
-                                    val rm = selectedItems[0]
-                                    "${rh.gs(app.aaps.core.ui.R.string.running_mode)}: ${rm.mode.name}\n${dateUtil.dateAndTimeString(rm.timestamp)}"
-                                } else {
-                                    rh.gs(app.aaps.core.ui.R.string.confirm_remove_multiple_items, selectedItems.size)
-                                }
+                runningModes.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.no_records_available),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(50.dp),
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
 
-                                uiInteraction.showOkCancelDialog(
-                                    context = context,
-                                    title = rh.gs(app.aaps.core.ui.R.string.removerecord),
-                                    message = confirmationText,
-                                    ok = {
-                                        selectedItems.forEach { rm ->
-                                            persistenceLayer.invalidateRunningMode(
-                                                id = rm.id,
-                                                action = Action.LOOP_REMOVED,
-                                                source = Sources.Treatments,
-                                                note = null,
-                                                listValues = listOfNotNull(
-                                                    ValueWithUnit.Timestamp(rm.timestamp),
-                                                    ValueWithUnit.RMMode(rm.mode),
-                                                    ValueWithUnit.Minute(TimeUnit.MILLISECONDS.toMinutes(rm.duration).toInt())
-                                                )
-                                            ).subscribe()
-                                        }
-                                        selectedItems.clear()
-                                        isRemovingMode = false
-                                        refreshKey++
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        itemsIndexed(
+                            items = runningModes,
+                            key = { _, item -> item.id }
+                        ) { index, rm ->
+                            RunningModeItem(
+                                runningMode = rm,
+                                isActive = rm.id == currentlyActiveMode.id,
+                                isFuture = rm.timestamp > dateUtil.now(),
+                                showDate = index == 0 || !dateUtil.isSameDayGroup(rm.timestamp, runningModes[index - 1].timestamp),
+                                isRemovingMode = isRemovingMode,
+                                isSelected = selectedItems.contains(rm),
+                                onSelectionChange = { selected ->
+                                    if (selected) {
+                                        selectedItems.add(rm)
+                                    } else {
+                                        selectedItems.remove(rm)
                                     }
-                                )
-                            }
-                        } else {
-                            // Enter removing mode
-                            isRemovingMode = true
-                            selectedItems.clear()
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Remove items",
-                        tint = if (isRemovingMode) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                // Cancel button when in removing mode
-                if (isRemovingMode) {
-                    IconButton(onClick = {
-                        isRemovingMode = false
-                        selectedItems.clear()
-                    }) {
-                        Text(
-                            text = stringResource(android.R.string.cancel),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-
-            // Content
-            Box(modifier = Modifier.fillMaxSize()) {
-                when {
-                    isLoading -> {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                    }
-
-                    runningModes.isEmpty() -> {
-                        Text(
-                            text = stringResource(R.string.no_records_available),
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(50.dp),
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                    }
-
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            itemsIndexed(
-                                items = runningModes,
-                                key = { _, item -> item.id }
-                            ) { index, rm ->
-                                RunningModeItem(
-                                    runningMode = rm,
-                                    isActive = rm.id == currentlyActiveMode.id,
-                                    isFuture = rm.timestamp > dateUtil.now(),
-                                    showDate = index == 0 || !dateUtil.isSameDayGroup(rm.timestamp, runningModes[index - 1].timestamp),
-                                    isRemovingMode = isRemovingMode,
-                                    isSelected = selectedItems.contains(rm),
-                                    onSelectionChange = { selected ->
-                                        if (selected) {
-                                            selectedItems.add(rm)
-                                        } else {
-                                            selectedItems.remove(rm)
-                                        }
-                                    },
-                                    rh = rh,
-                                    translator = translator,
-                                    dateUtil = dateUtil,
-                                    elementColors = elementColors
-                                )
-                            }
+                                },
+                                rh = rh,
+                                translator = translator,
+                                dateUtil = dateUtil,
+                                elementColors = elementColors
+                            )
                         }
                     }
                 }

@@ -41,7 +41,8 @@ class TreatmentsExtendedBolusesFragment : DaggerFragment() {
                     dateUtil = dateUtil,
                     uiInteraction = uiInteraction,
                     rxBus = rxBus,
-                    aapsSchedulers = aapsSchedulers
+                    aapsSchedulers = aapsSchedulers,
+                    setToolbarActions = { } // No-op for fragment usage
                 )
             }
         }
