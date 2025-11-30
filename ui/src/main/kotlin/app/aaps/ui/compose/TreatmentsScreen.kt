@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -16,10 +19,12 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +46,7 @@ import app.aaps.core.ui.compose.icons.TempBasal
 import app.aaps.core.ui.compose.icons.TempTarget
 import app.aaps.core.ui.compose.icons.UserEntry
 import app.aaps.ui.R
+import kotlinx.coroutines.launch
 
 /**
  * Composable screen displaying treatments with tab navigation.
@@ -50,17 +56,13 @@ import app.aaps.ui.R
  * @param showExtendedBolusTab Whether to show the Extended Bolus tab
  * @param onNavigateBack Callback when back navigation is requested
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TreatmentsScreen(
     activity: FragmentActivity,
     showExtendedBolusTab: Boolean,
     onNavigateBack: () -> Unit
 ) {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    var containerInitialized by remember { mutableStateOf(false) }
-    val containerId = remember { View.generateViewId() }
-
     val iconColors = AapsTheme.elementColors
 
     // Define tabs with their icons and content descriptions
@@ -135,18 +137,13 @@ fun TreatmentsScreen(
         }
     }
 
-    // Function to set fragment
-    fun setFragment(fragment: Fragment) {
-        activity.supportFragmentManager.beginTransaction()
-            .replace(containerId, fragment)
-            .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
-            .commit()
-    }
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(tabs[selectedTabIndex].titleRes)) },
+                title = { Text(stringResource(tabs[pagerState.currentPage].titleRes)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -164,15 +161,13 @@ fun TreatmentsScreen(
                 .padding(paddingValues)
         ) {
             // Tab row
-            PrimaryScrollableTabRow(selectedTabIndex = selectedTabIndex) {
+            PrimaryScrollableTabRow(selectedTabIndex = pagerState.currentPage) {
                 tabs.forEachIndexed { index, tab ->
                     Tab(
-                        selected = selectedTabIndex == index,
+                        selected = pagerState.currentPage == index,
                         onClick = {
-                            selectedTabIndex = index
-                            if (containerInitialized) {
-                                val fragment = tab.fragmentClass.getDeclaredConstructor().newInstance()
-                                setFragment(fragment)
+                            coroutineScope.launch {
+                                pagerState.animateScrollToPage(index)
                             }
                         },
                         icon = {
@@ -190,22 +185,27 @@ fun TreatmentsScreen(
                 }
             }
 
-            // Fragment container
-            AndroidView(
-                factory = { context ->
-                    FragmentContainerView(context).apply {
-                        id = containerId
-                    }
-                },
-                update = { view ->
-                    if (!containerInitialized) {
-                        containerInitialized = true
-                        // Load initial fragment
-                        setFragment(tabs[0].fragmentClass.getDeclaredConstructor().newInstance())
-                    }
-                },
+            // Fragment container with swipe support
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier.fillMaxSize()
-            )
+            ) { page ->
+                AndroidView(
+                    factory = { context ->
+                        FragmentContainerView(context).apply {
+                            id = View.generateViewId()
+                        }
+                    },
+                    update = { view ->
+                        val fragment = tabs[page].fragmentClass.getDeclaredConstructor().newInstance()
+                        activity.supportFragmentManager.beginTransaction()
+                            .replace(view.id, fragment)
+                            .setTransition(FragmentTransaction.TRANSIT_FRAGMENT_FADE)
+                            .commit()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }
