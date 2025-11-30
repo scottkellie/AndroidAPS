@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -289,43 +291,64 @@ fun CareportalScreen(
                 }
 
                 else -> {
+                    // Group items by day for sticky headers
+                    val groupedByDay = therapyEvents.groupBy { te ->
+                        val timestamp = te.timestamp
+                        dateUtil.dateString(timestamp)
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        itemsIndexed(
-                            items = therapyEvents,
-                            key = { _, item -> item.id }
-                        ) { index, te ->
-                            TherapyEventItem(
-                                therapyEvent = te,
-                                showDate = index == 0 || !dateUtil.isSameDayGroup(te.timestamp, therapyEvents[index - 1].timestamp),
-                                isRemovingMode = isRemovingMode,
-                                isSelected = selectedItems.contains(te),
-                                onClick = {
-                                    if (isRemovingMode && te.isValid) {
-                                        // Toggle selection
-                                        if (selectedItems.contains(te)) {
-                                            selectedItems.remove(te)
-                                        } else {
+                        groupedByDay.forEach { (dateString, itemsForDay) ->
+                            stickyHeader(key = dateString) {
+                                Text(
+                                    text = dateUtil.dateStringRelative(itemsForDay.first().timestamp, rh),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            items(
+                                items = itemsForDay,
+                                key = { item -> item.id }
+                            ) { te ->
+                                TherapyEventItem(
+                                    therapyEvent = te,
+                                    isRemovingMode = isRemovingMode,
+                                    isSelected = selectedItems.contains(te),
+                                    onClick = {
+                                        if (isRemovingMode && te.isValid) {
+                                            // Toggle selection
+                                            if (selectedItems.contains(te)) {
+                                                selectedItems.remove(te)
+                                            } else {
+                                                selectedItems.add(te)
+                                            }
+                                        }
+                                    },
+                                    onLongPress = {
+                                        if (te.isValid && !isRemovingMode) {
+                                            // Enter selection mode and select this item
+                                            isRemovingMode = true
+                                            selectedItems.clear()
                                             selectedItems.add(te)
                                         }
-                                    }
-                                },
-                                onLongPress = {
-                                    if (te.isValid && !isRemovingMode) {
-                                        // Enter selection mode and select this item
-                                        isRemovingMode = true
-                                        selectedItems.clear()
-                                        selectedItems.add(te)
-                                    }
-                                },
-                                profileUtil = profileUtil,
-                                rh = rh,
-                                translator = translator,
-                                dateUtil = dateUtil,
-                                elementColors = elementColors
-                            )
+                                    },
+                                    profileUtil = profileUtil,
+                                    rh = rh,
+                                    translator = translator,
+                                    dateUtil = dateUtil,
+                                    elementColors = elementColors
+                                )
+                            }
                         }
                     }
                 }
@@ -338,7 +361,6 @@ fun CareportalScreen(
 @Composable
 private fun TherapyEventItem(
     therapyEvent: TE,
-    showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -352,7 +374,7 @@ private fun TherapyEventItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(horizontal = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -366,39 +388,26 @@ private fun TherapyEventItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(2.dp)
+            modifier = Modifier.padding(1.dp)
         ) {
-            // Date header
-            if (showDate) {
-                Text(
-                    text = dateUtil.dateStringRelative(therapyEvent.timestamp, rh),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 5.dp, vertical = 5.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             // Time and Type row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Time
                 Text(
                     text = dateUtil.timeString(therapyEvent.timestamp),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp
                 )
 
                 // Event type
                 Text(
                     text = translator.translate(therapyEvent.type),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -413,7 +422,7 @@ private fun TherapyEventItem(
                         contentDescription = "Nightscout",
                         modifier = Modifier
                             .size(21.dp)
-                            .padding(end = 10.dp)
+                            .padding(end = 5.dp)
                     )
                 }
 
@@ -421,7 +430,7 @@ private fun TherapyEventItem(
                 if (!therapyEvent.isValid) {
                     Text(
                         text = stringResource(app.aaps.core.ui.R.string.invalid),
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.padding(start = 5.dp),
                         fontSize = 14.sp,
                         color = Color.Red
                     )
@@ -432,14 +441,14 @@ private fun TherapyEventItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Duration
                 if (therapyEvent.duration != 0L) {
                     Text(
                         text = dateUtil.niceTimeScalar(therapyEvent.duration, rh),
-                        modifier = Modifier.padding(start = 10.dp),
+                        modifier = Modifier.padding(start = 4.dp),
                         fontSize = 14.sp
                     )
                 }
@@ -448,7 +457,7 @@ private fun TherapyEventItem(
                 if (therapyEvent.type == TE.Type.FINGER_STICK_BG_VALUE && therapyEvent.glucose != null) {
                     Text(
                         text = profileUtil.stringInCurrentUnitsDetect(therapyEvent.glucose!!),
-                        modifier = Modifier.padding(start = 10.dp),
+                        modifier = Modifier.padding(start = 4.dp),
                         fontSize = 14.sp
                     )
                 }
@@ -458,7 +467,7 @@ private fun TherapyEventItem(
                     Text(
                         text = therapyEvent.note!!,
                         modifier = Modifier
-                            .padding(start = 10.dp)
+                            .padding(start = 4.dp)
                             .weight(1f),
                         fontSize = 14.sp
                     )

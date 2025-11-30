@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -263,46 +264,67 @@ fun TempTargetScreen(
                     }
 
                     else -> {
+                        // Group items by day for sticky headers
+                        val groupedByDay = tempTargets.groupBy { tt ->
+                            val timestamp = tt.timestamp
+                            dateUtil.dateString(timestamp)
+                        }
+
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            itemsIndexed(
-                                items = tempTargets,
-                                key = { _, item -> item.id }
-                            ) { index, tt ->
-                                TempTargetItem(
-                                    tempTarget = tt,
-                                    isActive = tt.id == currentlyActiveTarget?.id,
-                                    isFuture = tt.timestamp > dateUtil.now(),
-                                    showDate = index == 0 || !dateUtil.isSameDayGroup(tt.timestamp, tempTargets[index - 1].timestamp),
-                                    isRemovingMode = isRemovingMode,
-                                    isSelected = selectedItems.contains(tt),
-                                    onClick = {
-                                        if (isRemovingMode && tt.isValid) {
-                                            // Toggle selection
-                                            if (selectedItems.contains(tt)) {
-                                                selectedItems.remove(tt)
-                                            } else {
+                            groupedByDay.forEach { (dateString, itemsForDay) ->
+                                stickyHeader(key = dateString) {
+                                    Text(
+                                        text = dateUtil.dateStringRelative(itemsForDay.first().timestamp, rh),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(MaterialTheme.colorScheme.surface)
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+
+                                items(
+                                    items = itemsForDay,
+                                    key = { item -> item.id }
+                                ) { tt ->
+                                    TempTargetItem(
+                                        tempTarget = tt,
+                                        isActive = tt.id == currentlyActiveTarget?.id,
+                                        isFuture = tt.timestamp > dateUtil.now(),
+                                        isRemovingMode = isRemovingMode,
+                                        isSelected = selectedItems.contains(tt),
+                                        onClick = {
+                                            if (isRemovingMode && tt.isValid) {
+                                                // Toggle selection
+                                                if (selectedItems.contains(tt)) {
+                                                    selectedItems.remove(tt)
+                                                } else {
+                                                    selectedItems.add(tt)
+                                                }
+                                            }
+                                        },
+                                        onLongPress = {
+                                            if (tt.isValid && !isRemovingMode) {
+                                                // Enter selection mode and select this item
+                                                isRemovingMode = true
+                                                selectedItems.clear()
                                                 selectedItems.add(tt)
                                             }
-                                        }
-                                    },
-                                    onLongPress = {
-                                        if (tt.isValid && !isRemovingMode) {
-                                            // Enter selection mode and select this item
-                                            isRemovingMode = true
-                                            selectedItems.clear()
-                                            selectedItems.add(tt)
-                                        }
-                                    },
-                                    profileUtil = profileUtil,
-                                    rh = rh,
-                                    translator = translator,
-                                    dateUtil = dateUtil,
-                                    decimalFormatter = decimalFormatter,
-                                    elementColors = elementColors
-                                )
+                                        },
+                                        profileUtil = profileUtil,
+                                        rh = rh,
+                                        translator = translator,
+                                        dateUtil = dateUtil,
+                                        decimalFormatter = decimalFormatter,
+                                        elementColors = elementColors
+                                    )
+                                }
                             }
                         }
                     }
@@ -317,7 +339,6 @@ private fun TempTargetItem(
     tempTarget: TT,
     isActive: Boolean,
     isFuture: Boolean,
-    showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -334,7 +355,7 @@ private fun TempTargetItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(horizontal = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -348,32 +369,19 @@ private fun TempTargetItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(2.dp)
+            modifier = Modifier.padding(1.dp)
         ) {
-            // Date header
-            if (showDate) {
-                Text(
-                    text = dateUtil.dateStringRelative(tempTarget.timestamp, rh),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 5.dp, vertical = 5.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             // Main content row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Time
                 Text(
                     text = dateUtil.timeRangeString(tempTarget.timestamp, tempTarget.end),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp,
                     color = when {
                         isActive -> Color(elementColors.tempTarget.value)
@@ -429,12 +437,12 @@ private fun TempTargetItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = stringResource(app.aaps.core.ui.R.string.reason),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp
                 )
 

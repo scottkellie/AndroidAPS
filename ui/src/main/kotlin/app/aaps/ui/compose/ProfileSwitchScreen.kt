@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -261,44 +262,65 @@ fun ProfileSwitchScreen(
                 }
 
                 else -> {
+                    // Group items by day for sticky headers
+                    val groupedByDay = profileSwitches.groupBy { ps ->
+                        val timestamp = ps.timestamp
+                        dateUtil.dateString(timestamp)
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        itemsIndexed(
-                            items = profileSwitches,
-                            key = { _, item -> item.id }
-                        ) { index, profileSwitch ->
-                            ProfileSwitchItem(
-                                profileSwitch = profileSwitch,
-                                isActive = profileSwitch.id == currentlyActiveProfile?.id,
-                                isFuture = profileSwitch.timestamp > dateUtil.now(),
-                                showDate = index == 0 || !dateUtil.isSameDayGroup(profileSwitch.timestamp, profileSwitches[index - 1].timestamp),
-                                isRemovingMode = isRemovingMode,
-                                isSelected = selectedItems.contains(profileSwitch),
-                                onClick = {
-                                    if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
-                                        // Toggle selection
-                                        if (selectedItems.contains(profileSwitch)) {
-                                            selectedItems.remove(profileSwitch)
-                                        } else {
+                        groupedByDay.forEach { (dateString, itemsForDay) ->
+                            stickyHeader(key = dateString) {
+                                Text(
+                                    text = dateUtil.dateStringRelative(itemsForDay.first().timestamp, rh),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            items(
+                                items = itemsForDay,
+                                key = { item -> item.id }
+                            ) { profileSwitch ->
+                                ProfileSwitchItem(
+                                    profileSwitch = profileSwitch,
+                                    isActive = profileSwitch.id == currentlyActiveProfile?.id,
+                                    isFuture = profileSwitch.timestamp > dateUtil.now(),
+                                    isRemovingMode = isRemovingMode,
+                                    isSelected = selectedItems.contains(profileSwitch),
+                                    onClick = {
+                                        if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
+                                            // Toggle selection
+                                            if (selectedItems.contains(profileSwitch)) {
+                                                selectedItems.remove(profileSwitch)
+                                            } else {
+                                                selectedItems.add(profileSwitch)
+                                            }
+                                        }
+                                    },
+                                    onLongPress = {
+                                        if (profileSwitch is ProfileSealed.PS && profileSwitch.isValid && !isRemovingMode) {
+                                            // Enter selection mode and select this item
+                                            isRemovingMode = true
+                                            selectedItems.clear()
                                             selectedItems.add(profileSwitch)
                                         }
-                                    }
-                                },
-                                onLongPress = {
-                                    if (profileSwitch is ProfileSealed.PS && profileSwitch.isValid && !isRemovingMode) {
-                                        // Enter selection mode and select this item
-                                        isRemovingMode = true
-                                        selectedItems.clear()
-                                        selectedItems.add(profileSwitch)
-                                    }
-                                },
-                                rh = rh,
-                                dateUtil = dateUtil,
-                                decimalFormatter = decimalFormatter,
-                                elementColors = elementColors
-                            )
+                                    },
+                                    rh = rh,
+                                    dateUtil = dateUtil,
+                                    decimalFormatter = decimalFormatter,
+                                    elementColors = elementColors
+                                )
+                            }
                         }
                     }
                 }
@@ -313,7 +335,6 @@ private fun ProfileSwitchItem(
     profileSwitch: ProfileSealed,
     isActive: Boolean,
     isFuture: Boolean,
-    showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -326,7 +347,7 @@ private fun ProfileSwitchItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(horizontal = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -340,26 +361,13 @@ private fun ProfileSwitchItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(2.dp)
+            modifier = Modifier.padding(1.dp)
         ) {
-            // Date header
-            if (showDate) {
-                Text(
-                    text = dateUtil.dateStringRelative(profileSwitch.timestamp, rh),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 5.dp, vertical = 5.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             // Main content row - Date and Time
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Profile helper indicator
@@ -369,14 +377,14 @@ private fun ProfileSwitchItem(
                         contentDescription = "Pump History",
                         modifier = Modifier
                             .size(21.dp)
-                            .padding(start = 10.dp, end = 5.dp)
+                            .padding(end = 5.dp)
                     )
                 }
 
                 // Time
                 Text(
                     text = dateUtil.timeString(profileSwitch.timestamp),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp,
                     color = when {
                         isActive -> Color(elementColors.profileSwitch.value)
@@ -389,7 +397,7 @@ private fun ProfileSwitchItem(
                 if (profileSwitch.duration != null && profileSwitch.duration != 0L) {
                     Text(
                         text = rh.gs(app.aaps.core.ui.R.string.format_mins, T.msecs(profileSwitch.duration ?: 0L).mins()),
-                        modifier = Modifier.padding(start = 10.dp),
+                        modifier = Modifier.padding(start = 8.dp),
                         fontSize = 14.sp
                     )
                 }
@@ -404,7 +412,7 @@ private fun ProfileSwitchItem(
                         contentDescription = "Nightscout",
                         modifier = Modifier
                             .size(21.dp)
-                            .padding(end = 10.dp)
+                            .padding(start = 5.dp)
                     )
                 }
             }
@@ -413,18 +421,18 @@ private fun ProfileSwitchItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = stringResource(app.aaps.core.ui.R.string.profile),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp
                 )
 
                 Text(
                     text = ":",
-                    modifier = Modifier.padding(end = 5.dp),
+                    modifier = Modifier.padding(end = 4.dp),
                     fontSize = 14.sp
                 )
 
@@ -445,7 +453,7 @@ private fun ProfileSwitchItem(
                 if (!profileSwitch.isValid) {
                     Text(
                         text = stringResource(app.aaps.core.ui.R.string.invalid),
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.padding(start = 5.dp),
                         fontSize = 14.sp,
                         color = Color.Red
                     )
@@ -466,19 +474,19 @@ private fun ProfileSwitchItem(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = " ",
-                        modifier = Modifier.padding(start = 10.dp),
+                        modifier = Modifier.padding(start = 4.dp),
                         fontSize = 14.sp
                     )
 
                     if (profileSwitch.value.percentage != 100) {
                         Text(
                             text = "${profileSwitch.value.percentage}%",
-                            modifier = Modifier.padding(start = 10.dp),
+                            modifier = Modifier.padding(start = 8.dp),
                             fontSize = 14.sp
                         )
                     }
@@ -486,7 +494,7 @@ private fun ProfileSwitchItem(
                     if (profileSwitch.value.timeshift != 0L) {
                         Text(
                             text = "${T.msecs(profileSwitch.value.timeshift).hours()}h",
-                            modifier = Modifier.padding(start = 10.dp),
+                            modifier = Modifier.padding(start = 8.dp),
                             fontSize = 14.sp
                         )
                     }

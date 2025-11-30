@@ -1,6 +1,7 @@
 package app.aaps.ui.compose
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -252,44 +253,65 @@ fun RunningModeScreen(
                 }
 
                 else -> {
+                    // Group items by day for sticky headers
+                    val groupedByDay = runningModes.groupBy { oe ->
+                        val timestamp = oe.timestamp
+                        dateUtil.dateString(timestamp)
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        itemsIndexed(
-                            items = runningModes,
-                            key = { _, item -> item.id }
-                        ) { index, rm ->
-                            RunningModeItem(
-                                runningMode = rm,
-                                isActive = rm.id == currentlyActiveMode.id,
-                                isFuture = rm.timestamp > dateUtil.now(),
-                                showDate = index == 0 || !dateUtil.isSameDayGroup(rm.timestamp, runningModes[index - 1].timestamp),
-                                isRemovingMode = isRemovingMode,
-                                isSelected = selectedItems.contains(rm),
-                                onClick = {
-                                    if (isRemovingMode && rm.isValid) {
-                                        // Toggle selection
-                                        if (selectedItems.contains(rm)) {
-                                            selectedItems.remove(rm)
-                                        } else {
+                        groupedByDay.forEach { (dateString, itemsForDay) ->
+                            stickyHeader(key = dateString) {
+                                Text(
+                                    text = dateUtil.dateStringRelative(itemsForDay.first().timestamp, rh),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+
+                            items(
+                                items = itemsForDay,
+                                key = { item -> item.id }
+                            ) { rm ->
+                                RunningModeItem(
+                                    runningMode = rm,
+                                    isActive = rm.id == currentlyActiveMode.id,
+                                    isFuture = rm.timestamp > dateUtil.now(),
+                                    isRemovingMode = isRemovingMode,
+                                    isSelected = selectedItems.contains(rm),
+                                    onClick = {
+                                        if (isRemovingMode && rm.isValid) {
+                                            // Toggle selection
+                                            if (selectedItems.contains(rm)) {
+                                                selectedItems.remove(rm)
+                                            } else {
+                                                selectedItems.add(rm)
+                                            }
+                                        }
+                                    },
+                                    onLongPress = {
+                                        if (rm.isValid && !isRemovingMode) {
+                                            // Enter selection mode and select this item
+                                            isRemovingMode = true
+                                            selectedItems.clear()
                                             selectedItems.add(rm)
                                         }
-                                    }
-                                },
-                                onLongPress = {
-                                    if (rm.isValid && !isRemovingMode) {
-                                        // Enter selection mode and select this item
-                                        isRemovingMode = true
-                                        selectedItems.clear()
-                                        selectedItems.add(rm)
-                                    }
-                                },
-                                rh = rh,
-                                translator = translator,
-                                dateUtil = dateUtil,
-                                elementColors = elementColors
-                            )
+                                    },
+                                    rh = rh,
+                                    translator = translator,
+                                    dateUtil = dateUtil,
+                                    elementColors = elementColors
+                                )
+                            }
                         }
                     }
                 }
@@ -304,7 +326,6 @@ private fun RunningModeItem(
     runningMode: RM,
     isActive: Boolean,
     isFuture: Boolean,
-    showDate: Boolean,
     isRemovingMode: Boolean,
     isSelected: Boolean,
     onClick: () -> Unit,
@@ -317,7 +338,7 @@ private fun RunningModeItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp)
+            .padding(horizontal = 2.dp)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongPress
@@ -331,32 +352,19 @@ private fun RunningModeItem(
         )
     ) {
         Column(
-            modifier = Modifier.padding(2.dp)
+            modifier = Modifier.padding(1.dp)
         ) {
-            // Date header
-            if (showDate) {
-                Text(
-                    text = dateUtil.dateStringRelative(runningMode.timestamp, rh),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 5.dp, vertical = 5.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
             // Main content row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Time
                 Text(
                     text = dateUtil.timeString(runningMode.timestamp),
-                    modifier = Modifier.padding(start = 10.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     fontSize = 14.sp,
                     color = when {
                         isActive -> Color(elementColors.tempTarget.value)
@@ -396,7 +404,7 @@ private fun RunningModeItem(
                         contentDescription = "Nightscout",
                         modifier = Modifier
                             .size(21.dp)
-                            .padding(end = 10.dp)
+                            .padding(start = 5.dp)
                     )
                 }
 
@@ -404,7 +412,7 @@ private fun RunningModeItem(
                 if (!runningMode.isValid) {
                     Text(
                         text = stringResource(app.aaps.core.ui.R.string.invalid),
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.padding(start = 5.dp),
                         fontSize = 14.sp,
                         color = Color.Red
                     )
