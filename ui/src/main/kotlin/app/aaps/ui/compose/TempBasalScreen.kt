@@ -46,9 +46,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import app.aaps.core.ui.compose.icons.Ns
 import app.aaps.core.ui.compose.icons.Pump
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.aaps.core.data.model.EB
@@ -295,6 +298,7 @@ fun TempBasalScreen(
 
     AapsTheme {
         val elementColors = AapsTheme.elementColors
+        val generalColors = AapsTheme.generalColors
 
         // Content
         Box(modifier = Modifier.fillMaxSize()) {
@@ -384,7 +388,8 @@ fun TempBasalScreen(
                                         rh = rh,
                                         dateUtil = dateUtil,
                                         decimalFormatter = decimalFormatter,
-                                        elementColors = elementColors
+                                        elementColors = elementColors,
+                                        generalColors = generalColors
                                     )
                                 }
                             }
@@ -410,7 +415,8 @@ private fun TempBasalItem(
     rh: ResourceHelper,
     dateUtil: DateUtil,
     decimalFormatter: DecimalFormatter,
-    elementColors: app.aaps.core.ui.compose.ElementColors
+    elementColors: app.aaps.core.ui.compose.ElementColors,
+    generalColors: app.aaps.core.ui.compose.GeneralColors
 ) {
     val now = dateUtil.now()
     val profile = profileFunction.getProfile(now)
@@ -436,159 +442,134 @@ private fun TempBasalItem(
             }
         )
     ) {
-        Column(
-            modifier = Modifier.padding(1.dp)
+        // Single row with all info
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main content row - time, rate, duration, flags
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Time
-                Text(
-                    text = if (isActive) {
-                        dateUtil.timeString(tempBasal.timestamp)
+            // Time range, rate, IOB, duration - all in one compact format
+            Text(
+                text = buildAnnotatedString {
+                    // Time range
+                    append(dateUtil.timeRangeString(tempBasal.timestamp, tempBasal.end))
+                    append(" ")
+                    // Rate
+                    if (tempBasal.isAbsolute) {
+                        append(decimalFormatter.to2Decimal(tempBasal.rate))
+                        append("U/h")
                     } else {
-                        dateUtil.timeRangeString(tempBasal.timestamp, tempBasal.end)
-                    },
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp,
-                    color = when {
-                        isActive -> Color(elementColors.tempTarget.value)
-                        isFuture -> Color(0xFFFFAA00) // scheduled color
-                        else -> MaterialTheme.colorScheme.onSurface
+                        append(tempBasal.rate.toInt().toString())
+                        append("%")
                     }
-                )
+                    // IOB in color
+                    if (iob.basaliob != 0.0) {
+                        append(" ")
+                        withStyle(style = SpanStyle(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(generalColors.activeInsulinText.value)
+                        )) {
+                            append("(")
+                            append(decimalFormatter.to2Decimal(iob.basaliob))
+                            append("U)")
+                        }
+                    }
+                    append(" ")
+                    // Duration
+                    append(T.msecs(tempBasal.duration).mins().toInt().toString())
+                    append("min")
+                },
+                modifier = Modifier.padding(start = 4.dp),
+                fontSize = 14.sp,
+                color = when {
+                    isActive -> Color(elementColors.tempTarget.value)
+                    isFuture -> Color(0xFFFFAA00) // scheduled color
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+            )
 
-                // Rate
+            // Type flags
+            if (tempBasal.type == TB.Type.FAKE_EXTENDED) {
                 Text(
-                    text = if (tempBasal.isAbsolute) {
-                        rh.gs(app.aaps.core.ui.R.string.pump_base_basal_rate, tempBasal.rate)
-                    } else {
-                        rh.gs(app.aaps.core.ui.R.string.format_percent, tempBasal.rate.toInt())
-                    },
-                    modifier = Modifier.padding(start = 10.dp),
-                    fontSize = 14.sp
+                    text = "E",
+                    modifier = Modifier.padding(start = 8.dp),
+                    fontSize = 14.sp,
+                    color = Color(elementColors.extendedBolus.value)
                 )
-
-                // Duration
-                Text(
-                    text = rh.gs(app.aaps.core.ui.R.string.format_mins, T.msecs(tempBasal.duration).mins()),
-                    modifier = Modifier.padding(start = 10.dp),
-                    fontSize = 14.sp
-                )
-
-                // Spacer
-                Box(modifier = Modifier.weight(1f))
-
-                // Type flags
-                if (tempBasal.type == TB.Type.FAKE_EXTENDED) {
-                    Text(
-                        text = "E",
-                        modifier = Modifier.padding(start = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color(elementColors.extendedBolus.value)
-                    )
-                }
-
-                if (tempBasal.type == TB.Type.PUMP_SUSPEND) {
-                    Text(
-                        text = "S",
-                        modifier = Modifier.padding(start = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color(elementColors.extendedBolus.value)
-                    )
-                }
-
-                if (tempBasal.type == TB.Type.EMULATED_PUMP_SUSPEND) {
-                    Text(
-                        text = "ES",
-                        modifier = Modifier.padding(start = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color(elementColors.extendedBolus.value)
-                    )
-                }
-
-                if (tempBasal.type == TB.Type.SUPERBOLUS) {
-                    Text(
-                        text = "SB",
-                        modifier = Modifier.padding(start = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color(elementColors.extendedBolus.value)
-                    )
-                }
-
-                // PH indicator (Pump History)
-                if (tempBasal.ids.pumpId != null) {
-                    Icon(
-                        imageVector = Pump,
-                        contentDescription = "Pump History",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(start = 5.dp)
-                    )
-                }
-
-                // NS indicator
-                if (tempBasal.ids.nightscoutId != null) {
-                    Icon(
-                        imageVector = Ns,
-                        contentDescription = "Nightscout",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(start = 5.dp, end = 10.dp)
-                    )
-                }
             }
 
-            // IOB row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (tempBasal.type == TB.Type.PUMP_SUSPEND) {
                 Text(
-                    text = rh.gs(R.string.tempbasals_iob_label_string),
-                    modifier = Modifier.padding(start = 4.dp, end = 10.dp),
-                    fontSize = 14.sp
-                )
-
-                Text(
-                    text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, iob.basaliob),
-                    modifier = Modifier.padding(end = 30.dp),
+                    text = "S",
+                    modifier = Modifier.padding(start = 8.dp),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (abs(iob.basaliob) > 0.01) {
-                        Color(elementColors.tempTarget.value)
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
+                    color = Color(elementColors.extendedBolus.value)
                 )
+            }
 
-                // Spacer
-                Box(modifier = Modifier.weight(1f))
+            if (tempBasal.type == TB.Type.EMULATED_PUMP_SUSPEND) {
+                Text(
+                    text = "ES",
+                    modifier = Modifier.padding(start = 8.dp),
+                    fontSize = 14.sp,
+                    color = Color(elementColors.extendedBolus.value)
+                )
+            }
 
-                // Invalid indicator
-                if (!tempBasal.isValid) {
-                    Text(
-                        text = stringResource(app.aaps.core.ui.R.string.invalid),
-                        modifier = Modifier.padding(horizontal = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color.Red
-                    )
-                }
+            if (tempBasal.type == TB.Type.SUPERBOLUS) {
+                Text(
+                    text = "SB",
+                    modifier = Modifier.padding(start = 8.dp),
+                    fontSize = 14.sp,
+                    color = Color(elementColors.extendedBolus.value)
+                )
+            }
 
-                // Checkbox for removal
-                if (isRemovingMode && tempBasal.isValid) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onClick() },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+            // Spacer
+            Box(modifier = Modifier.weight(1f))
+
+            // Invalid indicator
+            if (!tempBasal.isValid) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Invalid",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp),
+                    tint = Color.Red
+                )
+            }
+
+            // PH indicator (Pump History)
+            if (tempBasal.ids.pumpId != null) {
+                Icon(
+                    imageVector = Pump,
+                    contentDescription = "Pump History",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp)
+                )
+            }
+
+            // NS indicator
+            if (tempBasal.ids.nightscoutId != null) {
+                Icon(
+                    imageVector = Ns,
+                    contentDescription = "Nightscout",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp)
+                )
+            }
+
+            // Checkbox for removal
+            if (isRemovingMode && tempBasal.isValid) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

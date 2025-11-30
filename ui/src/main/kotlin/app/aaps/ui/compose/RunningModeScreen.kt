@@ -423,11 +423,13 @@ private fun RunningModeItem(
 
                 // Invalid indicator
                 if (!runningMode.isValid) {
-                    Text(
-                        text = stringResource(app.aaps.core.ui.R.string.invalid),
-                        modifier = Modifier.padding(start = 5.dp),
-                        fontSize = 14.sp,
-                        color = Color.Red
+                    Icon(
+                        imageVector = Icons.Filled.Delete,
+                        contentDescription = "Invalid",
+                        modifier = Modifier
+                            .size(21.dp)
+                            .padding(start = 5.dp),
+                        tint = Color.Red
                     )
                 }
 
