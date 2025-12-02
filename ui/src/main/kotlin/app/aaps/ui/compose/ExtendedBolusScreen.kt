@@ -47,7 +47,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import app.aaps.core.ui.compose.icons.Ns
 import app.aaps.core.ui.compose.icons.Pump
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.aaps.core.data.model.EB
@@ -236,6 +239,7 @@ fun ExtendedBolusScreen(
 
     AapsTheme {
         val elementColors = AapsTheme.elementColors
+        val generalColors = AapsTheme.generalColors
 
         // Content
         Box(modifier = Modifier.fillMaxSize()) {
@@ -322,7 +326,8 @@ fun ExtendedBolusScreen(
                                     activeInsulin = activeInsulin,
                                     rh = rh,
                                     dateUtil = dateUtil,
-                                    elementColors = elementColors
+                                    elementColors = elementColors,
+                                    generalColors = generalColors
                                 )
                             }
                         }
@@ -345,7 +350,8 @@ private fun ExtendedBolusItem(
     activeInsulin: Insulin,
     rh: ResourceHelper,
     dateUtil: DateUtil,
-    elementColors: app.aaps.core.ui.compose.ElementColors
+    elementColors: app.aaps.core.ui.compose.ElementColors,
+    generalColors: app.aaps.core.ui.compose.GeneralColors
 ) {
     val profile = profileFunction.getProfile(extendedBolus.timestamp)
     val iob = if (profile != null) {
@@ -371,150 +377,101 @@ private fun ExtendedBolusItem(
             }
         )
     ) {
-        Column(
-            modifier = Modifier.padding(1.dp)
+        // Single row with all info
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main content row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Time
-                Text(
-                    text = if (isActive) {
-                        dateUtil.timeString(extendedBolus.timestamp)
-                    } else {
-                        dateUtil.timeRangeString(extendedBolus.timestamp, extendedBolus.end)
-                    },
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp,
-                    color = if (isActive) {
-                        Color(elementColors.tempBasal.value)
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
-
-                // Duration
-                Text(
-                    text = rh.gs(app.aaps.core.ui.R.string.format_mins, T.msecs(extendedBolus.duration).mins()),
-                    modifier = Modifier.padding(start = 10.dp),
-                    fontSize = 14.sp
-                )
-
-                // Spacer
-                Box(modifier = Modifier.weight(1f))
-
-                // NS indicator
-                if (extendedBolus.ids.nightscoutId != null) {
-                    Icon(
-                        imageVector = Ns,
-                        contentDescription = "Nightscout",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(end = 5.dp)
-                    )
-                }
-
-                // Pump indicator
-                if (extendedBolus.ids.pumpId != null) {
-                    Icon(
-                        imageVector = Pump,
-                        contentDescription = "Pump History",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(end = 10.dp)
-                    )
-                }
-            }
-
-            // Details row 1: Insulin and Ratio
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Insulin amount
-                Text(
-                    text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, extendedBolus.amount),
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp
-                )
-
-                // Ratio label
-                Text(
-                    text = stringResource(R.string.tempbasals_netratio_label_string),
-                    modifier = Modifier.padding(start = 10.dp),
-                    fontSize = 14.sp
-                )
-
-                // Ratio value
-                Text(
-                    text = rh.gs(app.aaps.core.ui.R.string.pump_base_basal_rate, extendedBolus.rate),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
+            // Pump indicator (at start for EPS-style)
+            if (extendedBolus.ids.pumpId != null) {
+                Icon(
+                    imageVector = Pump,
+                    contentDescription = "Pump History",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(end = 5.dp)
                 )
             }
 
-            // Details row 2: IOB
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // IOB label
-                Text(
-                    text = stringResource(R.string.tempbasals_iob_label_string),
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp
-                )
-
-                // IOB value
-                if (iob != null) {
-                    Text(
-                        text = rh.gs(app.aaps.core.ui.R.string.format_insulin_units, iob.iob),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (iob.iob != 0.0) {
-                            Color(elementColors.tempBasal.value)
+            // Time range, rate, IOB, duration - all in one compact format
+            Text(
+                text = buildAnnotatedString {
+                    // Time range
+                    append(
+                        if (isActive) {
+                            dateUtil.timeString(extendedBolus.timestamp)
                         } else {
-                            MaterialTheme.colorScheme.onSurface
+                            dateUtil.timeRangeString(extendedBolus.timestamp, extendedBolus.end)
                         }
                     )
-                } else {
-                    Text(
-                        text = "-",
-                        fontSize = 14.sp
-                    )
+                    append(" ")
+                    // Rate
+                    val formattedRate = String.format("%.2f", extendedBolus.rate)
+                    append(formattedRate)
+                    append("U/h")
+                    // IOB in blue color when != 0.0
+                    if (iob != null && iob.iob != 0.0) {
+                        append(" ")
+                        withStyle(
+                            style = SpanStyle(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(generalColors.activeInsulinText.value)
+                            )
+                        ) {
+                            append("(")
+                            val formattedIob = String.format("%.2f", iob.iob)
+                            append(formattedIob)
+                            append("U)")
+                        }
+                    }
+                    append(" ")
+                    // Duration
+                    append(T.msecs(extendedBolus.duration).mins().toInt().toString())
+                    append("min")
+                },
+                modifier = Modifier.padding(start = 4.dp),
+                fontSize = 14.sp,
+                color = when {
+                    isActive -> Color(elementColors.tempBasal.value)
+                    else -> MaterialTheme.colorScheme.onSurface
                 }
+            )
 
-                // Spacer
-                Box(modifier = Modifier.weight(1f))
+            // Spacer
+            Box(modifier = Modifier.weight(1f))
 
-                // Invalid indicator
-                if (!extendedBolus.isValid) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Invalid",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(start = 5.dp),
-                        tint = Color.Red
-                    )
-                }
+            // Invalid indicator
+            if (!extendedBolus.isValid) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Invalid",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp),
+                    tint = Color.Red
+                )
+            }
 
-                // Checkbox for removal
-                if (isRemovingMode && extendedBolus.isValid) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onClick() },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+            // NS indicator
+            if (extendedBolus.ids.nightscoutId != null) {
+                Icon(
+                    imageVector = Ns,
+                    contentDescription = "Nightscout",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp)
+                )
+            }
+
+            // Checkbox for removal
+            if (isRemovingMode && extendedBolus.isValid) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

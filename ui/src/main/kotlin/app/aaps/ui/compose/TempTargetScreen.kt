@@ -381,117 +381,72 @@ private fun TempTargetItem(
             }
         )
     ) {
-        Column(
-            modifier = Modifier.padding(1.dp)
+        // Single row with all info
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main content row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Time
-                Text(
-                    text = dateUtil.timeRangeString(tempTarget.timestamp, tempTarget.end),
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp,
-                    color = when {
-                        isActive -> Color(elementColors.tempTarget.value)
-                        isFuture -> Color(0xFFFFAA00) // scheduled color
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
-                )
-
-                // Low target
-                Text(
-                    text = tempTarget.lowValueToUnitsToString(units, decimalFormatter),
-                    modifier = Modifier.padding(start = 10.dp),
-                    fontSize = 14.sp
-                )
-
-                // Dash
-                Text(
-                    text = "-",
-                    modifier = Modifier.padding(start = 5.dp),
-                    fontSize = 14.sp
-                )
-
-                // High target
-                Text(
-                    text = tempTarget.highValueToUnitsToString(units, decimalFormatter),
-                    modifier = Modifier.padding(start = 5.dp),
-                    fontSize = 14.sp
-                )
-
-                // Duration
-                Text(
-                    text = rh.gs(app.aaps.core.ui.R.string.format_mins, T.msecs(tempTarget.duration).mins()),
-                    modifier = Modifier.padding(start = 10.dp),
-                    fontSize = 14.sp
-                )
-
-                // Spacer
-                Box(modifier = Modifier.weight(1f))
-
-                // NS indicator
-                if (tempTarget.ids.nightscoutId != null) {
-                    Icon(
-                        imageVector = Ns,
-                        contentDescription = "Nightscout",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(end = 10.dp)
-                    )
+            // Time range, targets, duration, reason - all in one compact format
+            Text(
+                text = buildString {
+                    // Time range
+                    append(dateUtil.timeRangeString(tempTarget.timestamp, tempTarget.end))
+                    append(" ")
+                    // Targets
+                    append(tempTarget.lowValueToUnitsToString(units, decimalFormatter))
+                    append("-")
+                    append(tempTarget.highValueToUnitsToString(units, decimalFormatter))
+                    append(" ")
+                    // Duration
+                    append(T.msecs(tempTarget.duration).mins().toInt())
+                    append("min ")
+                    // Reason (without "Reason:" label)
+                    append(translator.translate(tempTarget.reason))
+                },
+                modifier = Modifier.padding(start = 4.dp),
+                fontSize = 14.sp,
+                color = when {
+                    isActive -> Color(elementColors.tempTarget.value)
+                    isFuture -> Color(0xFFFFAA00) // scheduled color
+                    else -> MaterialTheme.colorScheme.onSurface
                 }
+            )
+
+            // Spacer
+            Box(modifier = Modifier.weight(1f))
+
+            // Invalid indicator
+            if (!tempTarget.isValid) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Invalid",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp),
+                    tint = Color.Red
+                )
             }
 
-            // Reason row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(app.aaps.core.ui.R.string.reason),
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp
+            // NS indicator
+            if (tempTarget.ids.nightscoutId != null) {
+                Icon(
+                    imageVector = Ns,
+                    contentDescription = "Nightscout",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp)
                 )
+            }
 
-                Text(
-                    text = ":",
-                    modifier = Modifier.padding(end = 5.dp),
-                    fontSize = 14.sp
+            // Checkbox for removal
+            if (isRemovingMode && tempTarget.isValid) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.size(24.dp)
                 )
-
-                Text(
-                    text = translator.translate(tempTarget.reason),
-                    modifier = Modifier.weight(1f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                // Invalid indicator
-                if (!tempTarget.isValid) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Invalid",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(start = 5.dp),
-                        tint = Color.Red
-                    )
-                }
-
-                // Checkbox for removal
-                if (isRemovingMode && tempTarget.isValid) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onClick() },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
             }
         }
     }

@@ -373,147 +373,99 @@ private fun ProfileSwitchItem(
             }
         )
     ) {
-        Column(
-            modifier = Modifier.padding(1.dp)
+        // Single row with all info
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Main content row - Date and Time
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Profile helper indicator
-                if (profileSwitch is ProfileSealed.EPS) {
-                    Icon(
-                        imageVector = Pump,
-                        contentDescription = "Pump History",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(end = 5.dp)
-                    )
-                }
-
-                // Time
-                Text(
-                    text = dateUtil.timeString(profileSwitch.timestamp),
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp,
-                    color = when {
-                        isActive -> Color(elementColors.profileSwitch.value)
-                        isFuture -> Color(0xFFFFAA00) // scheduled color
-                        else -> MaterialTheme.colorScheme.onSurface
-                    }
-                )
-
-                // Duration
-                if (profileSwitch.duration != null && profileSwitch.duration != 0L) {
-                    Text(
-                        text = rh.gs(app.aaps.core.ui.R.string.format_mins, T.msecs(profileSwitch.duration ?: 0L).mins()),
-                        modifier = Modifier.padding(start = 8.dp),
-                        fontSize = 14.sp
-                    )
-                }
-
-                // Spacer
-                Box(modifier = Modifier.weight(1f))
-
-                // NS indicator
-                if (profileSwitch.ids?.nightscoutId != null) {
-                    Icon(
-                        imageVector = Ns,
-                        contentDescription = "Nightscout",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(start = 5.dp)
-                    )
-                }
-            }
-
-            // Profile name row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = stringResource(app.aaps.core.ui.R.string.profile),
-                    modifier = Modifier.padding(start = 4.dp),
-                    fontSize = 14.sp
-                )
-
-                Text(
-                    text = ":",
-                    modifier = Modifier.padding(end = 4.dp),
-                    fontSize = 14.sp
-                )
-
-                val profileName = when (profileSwitch) {
-                    is ProfileSealed.PS -> profileSwitch.value.getCustomizedName(decimalFormatter)
-                    is ProfileSealed.EPS -> profileSwitch.value.originalCustomizedName
-                    else -> profileSwitch.profileName
-                }
-
-                Text(
-                    text = profileName,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                // Invalid indicator
-                if (!profileSwitch.isValid) {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = "Invalid",
-                        modifier = Modifier
-                            .size(21.dp)
-                            .padding(start = 5.dp),
-                        tint = Color.Red
-                    )
-                }
-
-                // Checkbox for removal
-                if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
-                    Checkbox(
-                        checked = isSelected,
-                        onCheckedChange = { onClick() },
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            // Percentage and timeshift row (only for PS)
-            if (profileSwitch is ProfileSealed.PS && (profileSwitch.value.percentage != 100 || profileSwitch.value.timeshift != 0L)) {
-                Row(
+            // Profile helper indicator (EPS from pump)
+            if (profileSwitch is ProfileSealed.EPS) {
+                Icon(
+                    imageVector = Pump,
+                    contentDescription = "Pump History",
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = " ",
-                        modifier = Modifier.padding(start = 4.dp),
-                        fontSize = 14.sp
-                    )
+                        .size(21.dp)
+                        .padding(end = 5.dp)
+                )
+            }
 
-                    if (profileSwitch.value.percentage != 100) {
-                        Text(
-                            text = "${profileSwitch.value.percentage}%",
-                            modifier = Modifier.padding(start = 8.dp),
-                            fontSize = 14.sp
-                        )
-                    }
+            // Time, profile name, duration, percentage, timeshift - all in one compact format
+            val profileName = when (profileSwitch) {
+                is ProfileSealed.PS -> profileSwitch.value.getCustomizedName(decimalFormatter)
+                is ProfileSealed.EPS -> profileSwitch.value.originalCustomizedName
+                else -> profileSwitch.profileName
+            }
 
-                    if (profileSwitch.value.timeshift != 0L) {
-                        Text(
-                            text = "${T.msecs(profileSwitch.value.timeshift).hours()}h",
-                            modifier = Modifier.padding(start = 8.dp),
-                            fontSize = 14.sp
-                        )
+            Text(
+                text = buildString {
+                    // Time
+                    append(dateUtil.timeString(profileSwitch.timestamp))
+                    append(" ")
+                    // Profile name
+                    append(profileName)
+                    // Duration
+                    if (profileSwitch.duration != null && profileSwitch.duration != 0L) {
+                        append(" ")
+                        append(T.msecs(profileSwitch.duration ?: 0L).mins().toInt())
+                        append("min")
                     }
+                    // Percentage (only if not 100%)
+                    if (profileSwitch is ProfileSealed.PS && profileSwitch.value.percentage != 100) {
+                        append(" ")
+                        append(profileSwitch.value.percentage)
+                        append("%")
+                    }
+                    // Timeshift (only if not 0)
+                    if (profileSwitch is ProfileSealed.PS && profileSwitch.value.timeshift != 0L) {
+                        append(" ")
+                        append(T.msecs(profileSwitch.value.timeshift).hours())
+                        append("h")
+                    }
+                },
+                modifier = Modifier.padding(start = 4.dp),
+                fontSize = 14.sp,
+                color = when {
+                    isActive -> Color(elementColors.profileSwitch.value)
+                    isFuture -> Color(0xFFFFAA00) // scheduled color
+                    else -> MaterialTheme.colorScheme.onSurface
                 }
+            )
+
+            // Spacer
+            Box(modifier = Modifier.weight(1f))
+
+            // Invalid indicator
+            if (!profileSwitch.isValid) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Invalid",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp),
+                    tint = Color.Red
+                )
+            }
+
+            // NS indicator
+            if (profileSwitch.ids?.nightscoutId != null) {
+                Icon(
+                    imageVector = Ns,
+                    contentDescription = "Nightscout",
+                    modifier = Modifier
+                        .size(21.dp)
+                        .padding(start = 5.dp)
+                )
+            }
+
+            // Checkbox for removal
+            if (isRemovingMode && profileSwitch is ProfileSealed.PS && profileSwitch.isValid) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onClick() },
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }
